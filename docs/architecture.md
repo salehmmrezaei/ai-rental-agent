@@ -100,7 +100,9 @@ APIs must enforce initial states and agency permissions.
 
 ## REST endpoint plan
 
-Only health endpoints are implemented in Phase 1. All other routes are planned.
+Health endpoints were implemented in Phase 1. Phase 2 adds registration, login,
+logout, profiles, password changes and an admin user directory. Inventory and rental
+operation routes remain planned. See the Phase 2 report for exact implemented routes.
 Collections will use bounded page/page_size and allowlisted sorting/filtering.
 Errors will use a shared envelope in Phase 2.
 
@@ -146,3 +148,30 @@ provisioning will use a separate development/bootstrap command.
 
 No real payments, external messaging, real personal records, or AI calls belong
 in this phase. Model packages for later phases are intentionally reserved.
+
+## Phase 2 authentication decisions
+
+- Argon2id hashes use 64 MiB memory, three iterations and four lanes, with independent
+  salts. Successful logins upgrade hashes when parameters change. Missing-user logins
+  verify against a dummy hash; wrong-password and inactive-account errors are generic.
+  See the [argon2-cffi API](https://argon2-cffi.readthedocs.io/en/stable/api.html).
+- JWTs pin HS256 and validate signature, expiry, issued-at/not-before, issuer and
+  audience. Subject and token ID are UUIDs; access type and integer token version
+  are validated. All these claims are required. See [PyJWT usage](https://pyjwt.readthedocs.io/en/latest/usage.html).
+- The signing key is backend-only, generated locally and required at application
+  startup. Database migrations do not require a signing key. No token embeds
+  passwords, email addresses or authorization roles.
+- Every request reads active state, token version and role from PostgreSQL. Updating
+  token_version revokes all that user's tokens persistently across server restarts.
+  Profile/password/logout writes lock the user row and recheck the authenticated
+  version before mutating, preventing stale concurrent credential changes.
+- Duplicate emails rely on the PostgreSQL unique constraint and are converted to
+  HTTP 409 with transaction rollback. Self-service models forbid privileged fields.
+- User profiles are self/admin-only. Property/unit guards scope SQL queries by owner
+  before returning data. Tenant or other-owner requests get the same 404 as missing
+  resources. The guards will be wired into the Phase 3 inventory routers.
+- Admin provisioning is a local password-prompt command, never public registration
+  and never a promotion of an existing account. The new read-only admin directory
+  exposes safe paginated user profiles.
+- Validation and database errors omit input values and SQL parameters. A bounded
+  IP-based local auth limiter supplements deployment-wide gateway limits.

@@ -17,8 +17,10 @@ class User(Record, Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(150))
     role: Mapped[str] = mapped_column(String(20))
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     __table_args__ = (
+        CheckConstraint("token_version >= 0", name="token_version"),
         CheckConstraint("role IN ('tenant','landlord','admin')", name="role"),
         CheckConstraint("email = lower(email)", name="email_normalized"),
         UniqueConstraint("id", "role"),

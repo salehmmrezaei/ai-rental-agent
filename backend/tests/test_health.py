@@ -6,6 +6,7 @@ from app.main import create_app
 
 
 def client(monkeypatch):
+    monkeypatch.setenv('JWT_SECRET', 'phase2-test-signing-key-that-is-at-least-32-bytes')
     monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://unused@localhost/unused')
     get_settings.cache_clear()
     return TestClient(create_app())
