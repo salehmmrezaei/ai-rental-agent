@@ -27,7 +27,10 @@ services:
     build: ./backend
     env_file: .env
     environment:
+      UPLOAD_DIR: /app/uploads
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    volumes:
+      - image_data:/app/uploads
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -53,3 +56,4 @@ services:
 volumes:
   postgres_data:
   frontend_modules:
+  image_data:
