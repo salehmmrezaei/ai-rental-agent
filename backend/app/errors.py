@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from starlette.exceptions import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,11 @@ def install_error_handlers(app: FastAPI):
                     "message": "Invalid value"} for e in exc.errors()]
         return JSONResponse(status_code=422, content={"error": {
             "code": "validation_error", "message": "Request validation failed", "details": details}})
+
+    @app.exception_handler(IntegrityError)
+    async def integrity_error(request: Request, exc: IntegrityError):
+        return JSONResponse(status_code=409, content={"error": {
+            "code": "data_conflict", "message": "Operation conflicts with existing records"}})
 
     @app.exception_handler(SQLAlchemyError)
     async def database_error(request: Request, exc: SQLAlchemyError):

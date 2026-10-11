@@ -20,6 +20,7 @@ Mako==1.4.3
 MarkupSafe==3.0.4
 opentelemetry-api==1.45.1
 packaging==26.3
+pillow==12.3.0
 pluggy==1.6.0
 psycopg==3.3.6
 psycopg-binary==3.3.6
@@ -31,6 +32,7 @@ Pygments==2.21.0
 PyJWT==2.15.1
 pytest==9.1.1
 python-dotenv==1.2.4
+python-multipart==0.0.32
 PyYAML==6.0.3
 SQLAlchemy==2.0.54
 starlette==1.7.0

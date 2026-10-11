@@ -101,8 +101,8 @@ APIs must enforce initial states and agency permissions.
 ## REST endpoint plan
 
 Health endpoints were implemented in Phase 1. Phase 2 adds registration, login,
-logout, profiles, password changes and an admin user directory. Inventory and rental
-operation routes remain planned. See the Phase 2 report for exact implemented routes.
+logout, profiles, password changes and an admin user directory. Phase 3 adds inventory CRUD, image management, listing moderation/search and live
+availability. Rental operation routes remain planned. See the Phase 2 report for exact implemented routes.
 Collections will use bounded page/page_size and allowlisted sorting/filtering.
 Errors will use a shared envelope in Phase 2.
 
@@ -175,3 +175,34 @@ in this phase. Model packages for later phases are intentionally reserved.
   exposes safe paginated user profiles.
 - Validation and database errors omit input values and SQL parameters. A bounded
   IP-based local auth limiter supplements deployment-wide gateway limits.
+
+## Phase 3 inventory decisions
+
+- Private inventory routes scope by landlord or admin; public listing serializers
+  omit ownership, moderation notes, storage keys and rental parties. Scoped queries
+  hide inaccessible unit/listing existence as well as their contents.
+- Property mutations and listing review transitions acquire the same property row
+  lock before checking review state. Property/unit/image content freezes during
+  review or publication; withdrawal returns unpublished reviews to draft. This
+  prevents a concurrent edit from bypassing an agency decision. Migration 0003
+  extends only listing transitions; earlier revisions stay frozen.
+- Search and availability use a shared correlated EXISTS predicate over contracts
+  and their units. Matching property, overlapping half-open dates, and same-unit or
+  apartment/room relationships produce a conflict. Separate rooms remain independent.
+  [SQLAlchemy correlated queries](https://docs.sqlalchemy.org/en/20/tutorial/data_select.html)
+  describe the query constructs used. No mutable occupied flag was added.
+- Search without dates exposes future inventory with available_now; dated search
+  requires both endpoints and covers the complete listing window. Occupancy uses
+  Europe/Rome business dates and includes apartment/room conflicts.
+- Amenity names are normalized and associated through the existing junction table.
+  Property/unit deletions respect business-history foreign keys and roll back on
+  conflicts. Draft listings, saved-listing references and images are removed only
+  when an inventory deletion can complete.
+- Pillow validates dimensions, format and single-frame content, then re-encodes
+  independent pixel data without user metadata. Request and file sizes are bounded.
+  [Pillow image security](https://pillow.readthedocs.io/en/stable/handbook/security.html)
+  documents decompression-bomb protections. Files have server-generated keys,
+  permission-aware serving, no-store/nosniff headers and a persistent Docker volume.
+- Local filesystem writes cannot share PostgreSQL's transaction: failed inserts
+  remove new files, successful metadata deletes trigger file cleanup, and crash
+  or cleanup leftovers require reconciliation. Unreferenced files are never public.

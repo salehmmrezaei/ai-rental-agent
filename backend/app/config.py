@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     jwt_issuer: str = "ai-rental-agent"
     jwt_audience: str = "ai-rental-agent-api"
     access_token_minutes: int = Field(default=30, ge=1, le=120)
+    upload_dir: str = "backend/uploads"
+    max_image_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024)
+    max_image_pixels: int = Field(default=20_000_000, ge=1, le=40_000_000)
+    max_property_images: int = Field(default=30, ge=1, le=100)
     auth_rate_limit: int = Field(default=20, ge=1, le=1000)
 
     def signing_key(self) -> str:

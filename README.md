@@ -1,14 +1,16 @@
 # AI Rental Agent
 
-Incremental rental management platform. **Phases 1 and 2: database, authentication and authorization** are
+Incremental rental management platform. **Phases 1–3: database, authentication and rental inventory** are
 implemented. The backend exposes registration/login, revocable JWT authentication,
-profile management, an admin user directory, health checks and OpenAPI documentation.
-Rental APIs follow in later phases. The existing React/Vite
+profile management, properties/units, secure images, listing moderation/search,
+availability, an admin user directory, health checks and OpenAPI documentation.
+Rental application and contract APIs follow in Phase 4. The existing React/Vite
 starter is preserved; it is not yet the rental interface.
 
 See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 1 implementation and verification](docs/phase-1.md), and
-[Phase 2 implementation and verification](docs/phase-2.md).
+[Phase 2 implementation and verification](docs/phase-2.md), and
+[Phase 3 implementation and verification](docs/phase-3.md).
 
 ## Local development with Docker
 
@@ -29,7 +31,9 @@ JSON array of exact frontend origins. JWT_SECRET is required for backend startup
 Generate a local value with `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
 and save it only in ignored .env. The existing local .env was updated with a generated
 secret during Phase 2. OpenAI is not integrated yet.
-Do not commit .env. PostgreSQL data persists in a named volume.
+Do not commit .env. PostgreSQL data and uploaded images persist in named volumes. Uploaded image
+metadata lives in PostgreSQL; files live in the backend image_data volume. Back up
+both together. Removing containers without deleting volumes preserves pictures.
 
 Compose waits for PostgreSQL readiness, applies `alembic upgrade head` in a
 one-shot migration container, then starts the backend and frontend.
@@ -160,24 +164,119 @@ Duplicate emails are rejected; this command never promotes an existing tenant or
 landlord. There are no shared demo passwords. Faker data and documented development
 demo accounts remain Phase 6 work. No real users or external messages are created.
 
+## Inventory and listings API
+
+All routes use `/api/v1`. Landlords manage their own inventory; administrators can
+manage every property while preserving its original landlord. Private collections
+and individual records require authentication. Public listing and availability
+responses omit owner identifiers, review notes and tenant/contract information.
+
+| Methods | Path | Behavior |
+| --- | --- | --- |
+| GET, POST | /properties | Scoped paginated list; create property |
+| GET, PATCH, DELETE | /properties/{id} | Owned/admin property detail, update, deletion |
+| GET, POST | /properties/{id}/units | Scoped paginated units; create apartment or room |
+| GET, PATCH, DELETE | /units/{id} | Owned/admin unit detail, price/detail update, deletion |
+| GET, POST, PATCH | /units/{id}/listing | Owned/admin draft creation, detail and availability editing |
+| POST | /listings/{id}/submit | Owner/admin submit for agency review |
+| POST | /listings/{id}/withdraw | Owner/admin return unpublished review to draft |
+| GET | /admin/listings | Admin queue with optional status and pagination |
+| PATCH | /admin/listings/{id}/status | Admin approve/reject/publish/unpublish |
+| GET | /listings | Public published search, filtering, sorting and pagination |
+| GET | /listings/{id} | Public published detail, prices, amenities and images |
+| GET | /listings/{id}/availability | Public live check for start_date and end_date |
+| GET, POST | /properties/{id}/images | Owned/admin image metadata and multipart upload |
+| PATCH, DELETE | /properties/{id}/images/{image_id} | Owned/admin alt text/order and deletion |
+| GET | /images/{image_id} | Authorized image bytes; public only via published listings |
+
+Create a property using fields title, description, city, address and a five-digit
+postal_code; optional amenities is a list of names. Development addresses must be
+synthetic; is_synthetic is fixed to true in API inputs. Landlords cannot supply
+another owner; agency creation requires an active landlord_id. PATCH never allows
+ownership changes. Amenities are trimmed, lowercased, deduplicated and normalized
+in their own tables.
+
+Create a unit with kind (`apartment` or `room`), name and monthly_rent. Optional
+fields are deposit, bedrooms and area_sqm. EUR amounts use exact decimals with at
+most two decimal places. One property may have at most one entire-apartment unit
+and 50 total units. Unit names are unique within a property; property and kind are
+immutable after creation. PATCH supports prices, deposit, size, bedrooms and name.
+Delete operations reject records with rental applications/contracts or visit
+history and roll back; existing business records are preserved.
+
+Create its listing with available_from and optional available_until. Listing states:
+
+```text
+draft/rejected → submitted → approved/rejected
+approved/unpublished → published → unpublished
+submitted/approved/unpublished/rejected → draft (withdraw)
+```
+
+Rejecting requires review_note. Only the agency may approve, reject, publish or
+unpublish. Availability dates may be edited only in draft/rejected states. While
+any listing on a property is submitted/approved/published/unpublished, its property,
+unit and image content is frozen to prevent changes bypassing approval. To edit:
+unpublish public listings as admin, withdraw remaining reviewed listings as owner,
+make changes, and resubmit. Drafting another existing unit's listing does not alter
+approved property content and remains possible.
+
+Public search supports city (case-insensitive), property_type (`apartment`/`room`),
+min_price, max_price, min_rooms (minimum bedrooms), paired start_date/end_date,
+sort (`newest`, `price_asc`, `price_desc`), page and page_size (maximum 100).
+For example:
+
+```text
+/api/v1/listings?city=Bologna&property_type=room&max_price=700&start_date=2027-01-01&end_date=2027-03-01&sort=price_asc
+```
+
+Without dates, search shows unexpired published listings including future inventory,
+with an explicit available_now value. With dates, it returns only listings whose
+window covers the complete requested interval and whose unit is free throughout.
+Intervals use `[start, end)`, allowing back-to-back rentals. Apartment rentals block
+rooms and room rentals block the entire apartment, while distinct rooms may overlap.
+All noncancelled contract intervals remain reserved, including historical completed
+and terminated records. Availability checks are observations; contract approval
+must recheck transactionally in Phase 4. Unit occupancy is derived from contracts
+as occupied now, reserved for a future date, or available, using Europe/Rome dates.
+
+## Image uploads
+
+POST a multipart form with file, alt_text, optional position (0–1000) and optional
+rental_unit_id belonging to the property. Default limits are 5 MiB per image,
+20 million pixels and 30 images per property; the total multipart request is bounded
+before parsing. Configure MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS and MAX_PROPERTY_IMAGES.
+Only valid single-frame JPEG/PNG/WebP with matching MIME types are accepted.
+Re-encoding applies orientation and removes EXIF/text metadata. Filenames are generated
+by the server, and storage keys are not returned in APIs.
+
+UPLOAD_DIR defaults to backend/uploads for local root-directory startup. Docker
+pins /app/uploads and uses a persistent volume writable by its nonroot backend user.
+Files are served through permission-aware routes rather than an unrestricted static
+mount. Shared property pictures become public with any published unit; unit pictures
+are visible with their unit or the whole apartment. Other unpublished room pictures
+stay private. Unpublishing removes public file access. Managed/private previews need
+a Bearer-authenticated request. Responses use no-store and nosniff headers.
+
+File writes are compensated on database failure; deletes commit metadata before
+removing files. A process crash or storage cleanup failure can leave an unreferenced
+file; database authorization prevents serving it. Deployment should reconcile storage
+and back up files with metadata. Missing files return 404 rather than exposing paths.
+
 ## Current scope and next phase
 
-Phase 2 authentication and permission dependencies are complete. Ownership helpers
-scope property and unit access to their landlord or an agency administrator; actual
-inventory CRUD routes will connect them in Phase 3. The admin directory is read-only;
-full agency user management remains a later rental-operations feature.
-
-The frontend is still the preserved React starter. Login/registration pages,
+Phase 3 inventory, moderation, uploads, search and availability are complete. The
+admin user directory remains read-only; full agency user management follows in
+rental operations. The frontend is still the preserved React starter; product pages,
 TypeScript/Tailwind, routing and authentication persistence belong to Phase 5.
-Password recovery and email verification would require additional confirmed workflows
-and are not implemented. No external email is sent. Rotating JWT_SECRET invalidates
-all current tokens; token_version changes invalidate an individual user's tokens.
 
-Phase 3 will implement ownership-safe properties and rental units, room management,
-validated image uploads, listing submission/moderation, search and availability.
-Later phases add transactional rental operations, the frontend, demo data and
-integration verification. AI development starts only after the core platform is
-operational and tested. No real payments or external messages are integrated.
+Password recovery and email verification are not implemented. No external email
+is sent. Demo accounts and the Faker dataset remain Phase 6 work. No real users,
+real payments, outgoing messages or OpenAI calls were introduced.
+
+Phase 4 will implement transactional rental applications and approval/rejection,
+contract lifecycle management, visits, tenant-to-agency messaging, occupancy reporting,
+and transaction retry/error handling. AI starts only after the core platform is
+operational and tested.
 
 Docker configuration was validated, but full Compose startup could not be tested
 because the Docker daemon was stopped. PostgreSQL migration and database tests
