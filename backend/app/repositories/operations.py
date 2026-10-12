@@ -1,7 +1,7 @@
 from sqlalchemy import select, func
 from app.errors import ApiError
 from app.models import RentalRequest, RentalContract, RentalUnit, Property, Visit, Conversation, Message, User
-from app.schemas.operations import ContractOwner, ContractPrivate, VisitRead, AgencyVisitRead, ConversationRead, MessageRead
+from app.schemas.operations import ApplicationRead, ContractOwner, ContractPrivate, VisitRead, AgencyVisitRead, ConversationRead, MessageRead
 
 
 def scoped(query, model, user):
@@ -30,9 +30,19 @@ def contract_view(contract,unit,prop,user):
     return ContractPrivate(**fields,tenant_id=contract.tenant_id,rental_request_id=contract.rental_request_id)
 
 
-def visit_view(visit,user):
+def rental_context(session,unit_id):
+    row=session.execute(select(RentalUnit.name,Property.title,Property.id).join(Property,Property.id==RentalUnit.property_id).where(RentalUnit.id==unit_id)).one()
+    return {"unit_name":row[0],"property_title":row[1],"property_id":row[2]}
+
+
+def application_view(session,request):
+    return ApplicationRead.model_validate(request).model_copy(update=rental_context(session,request.rental_unit_id))
+
+
+def visit_view(visit,user,session=None):
     cls=AgencyVisitRead if user.role=='admin' else VisitRead
-    return cls.model_validate(visit)
+    result=cls.model_validate(visit)
+    return result.model_copy(update=rental_context(session,visit.rental_unit_id)) if session is not None else result
 
 
 def unread_query(user):

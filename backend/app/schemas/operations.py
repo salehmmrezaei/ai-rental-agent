@@ -36,6 +36,9 @@ class Decision(Input):
 
 class ApplicationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    property_title: str | None = None
+    unit_name: str | None = None
+    property_id: UUID | None = None
     id: UUID
     tenant_id: UUID
     rental_unit_id: UUID
@@ -116,6 +119,9 @@ class VisitUpdate(Input):
 
 class VisitRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    property_title: str | None = None
+    unit_name: str | None = None
+    property_id: UUID | None = None
     id: UUID
     tenant_id: UUID
     rental_unit_id: UUID

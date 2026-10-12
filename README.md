@@ -1,18 +1,19 @@
 # AI Rental Agent
 
-Incremental rental management platform. **Phases 1–4: database, authentication, inventory and rental operations** are
+Incremental rental management platform. **Phases 1–5: database, authentication, inventory, rental operations and frontend** are
 implemented. The backend exposes registration/login, revocable JWT authentication,
 profile management, properties/units, secure images, listing moderation/search,
 availability, transactional applications/contracts, visits, private agency messaging,
 saved listings, occupancy reports, dashboard statistics, admin account management,
-health checks and OpenAPI documentation. The existing React/Vite
-starter is preserved; it is not yet the rental interface.
+health checks and OpenAPI documentation. The React/TypeScript/Tailwind frontend
+now provides public search and tenant, landlord and agency dashboards.
 
 See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 1 implementation and verification](docs/phase-1.md), and
 [Phase 2 implementation and verification](docs/phase-2.md), and
 [Phase 3 implementation and verification](docs/phase-3.md), and
-[Phase 4 implementation and verification](docs/phase-4.md).
+[Phase 4 implementation and verification](docs/phase-4.md), and
+[Phase 5 implementation and verification](docs/phase-5.md).
 
 ## Local development with Docker
 
@@ -40,7 +41,7 @@ both together. Removing containers without deleting volumes preserves pictures.
 Compose waits for PostgreSQL readiness, applies `alembic upgrade head` in a
 one-shot migration container, then starts the backend and frontend.
 
-- Frontend starter: http://localhost:5173
+- Frontend: http://localhost:5173
 - Backend OpenAPI: http://localhost:8000/docs
 - Liveness: http://localhost:8000/api/v1/health/live
 - Database/migration readiness: http://localhost:8000/api/v1/health/ready
@@ -269,16 +270,16 @@ and back up files with metadata. Missing files return 404 rather than exposing p
 
 ## Current scope and next phase
 
-Phases 1–4 are complete: inventory, moderation, uploads, search, availability,
-rental operations, private messaging, reporting and agency account management. The frontend is still the preserved React starter; product pages,
-TypeScript/Tailwind, routing and authentication persistence belong to Phase 5.
+Phases 1–5 are complete: inventory, moderation, uploads, search, availability,
+rental operations, private messaging, reporting, agency account management and
+backend-connected public pages and role dashboards.
 
 Password recovery and email verification are not implemented. No external email
 is sent. Demo accounts and the Faker dataset remain Phase 6 work. No real users,
 real payments, outgoing messages or OpenAI calls were introduced.
 
-Phase 5 will build the public website and tenant, landlord and admin dashboards
-connected to these backend routes. AI starts only after the core platform is
+Phase 6 will add the bulk Faker dataset, documented demo accounts and full
+Docker/user-journey integration checks. AI starts only after the core platform is
 operational and tested.
 
 Docker configuration was validated, but full Compose startup could not be tested
@@ -307,4 +308,24 @@ project root before starting this version. Migration
 dates are half-open: end dates can start another rental. Visits require timezone
 offsets and use UTC; business occupancy dates use Europe/Rome.
 
-Phase 5 will build the frontend; the React starter remains available.
+The frontend is implemented in Phase 5; see its verification report.
+
+
+## Frontend verification
+
+The frontend uses React Router, TypeScript and Tailwind. Vite proxies `/api` to
+FastAPI at `http://127.0.0.1:8000`; Compose uses `http://backend:8000`. Optional
+settings are in `frontend/.env.example`. Static hosting needs both an API proxy
+and an index.html fallback for frontend routes.
+
+```sh
+cd frontend
+npm ci
+npm run build
+npm test
+```
+
+For Chrome tests against a disposable backend/database, follow the
+[frontend README](frontend/README.md). Tests create synthetic verification records
+and random test administrator credentials; bulk Faker seeds and public demo
+credentials remain Phase 6.

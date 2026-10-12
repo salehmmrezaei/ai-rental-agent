@@ -10,3 +10,8 @@ node_modules/
 dist/
 backend/uploads/
 *.egg-info/
+
+# Frontend verification artifacts
+*.tsbuildinfo
+frontend/test-results/
+frontend/playwright-report/
