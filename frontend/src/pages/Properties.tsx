@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Building2, Plus, MapPin } from "lucide-react";
+import { ArrowUpRight, Plus, MapPin } from "lucide-react";
 import type { Page, Property } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
+import { PropertyImage } from "../components/PropertyImage";
 import { Empty, PageTitle, Pagination, Resource } from "../components/ui";
 export function PropertiesPage() {
   const { user } = useAuth();
@@ -33,9 +34,16 @@ export function PropertiesPage() {
               <div className="property-grid">
                 {data.items.map((property) => (
                   <article className="property-card panel" key={property.id}>
-                    <div className="property-card-icon">
-                      <Building2 size={31} strokeWidth={1.5} />
-                    </div>
+                    <Link
+                      to={`${base}/${property.id}`}
+                      className="property-cover"
+                      aria-label={`Manage ${property.title}`}
+                    >
+                      <PropertyImage
+                        image={property.cover_image || undefined}
+                        privateImage
+                      />
+                    </Link>
                     <p className="eyebrow">{property.city}</p>
                     <h2>
                       <Link to={`${base}/${property.id}`}>

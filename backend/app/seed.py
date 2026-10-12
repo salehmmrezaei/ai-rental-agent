@@ -223,6 +223,14 @@ def main() -> int:
         print("Demo seed failed; transaction rolled back. Check migrations and database access", file=sys.stderr)
         return 1
     print(json.dumps(result, sort_keys=True))
+    from app.demo_images import seed_demo_images
+    try:
+        with Session(get_engine()) as session, session.begin():
+            photos = seed_demo_images(session)
+    except (SeedError, SQLAlchemyError):
+        print("Demo data is ready, but photo import failed. Rerun the demo seed to retry", file=sys.stderr)
+        return 1
+    print("Demo photos: " + json.dumps(photos))
     print("Demo accounts: " + ", ".join(DEMO_EMAILS.values()))
     if not result["created"]:
         print("Existing demo data preserved, including edits and original passwords")

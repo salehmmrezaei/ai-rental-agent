@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -59,6 +59,14 @@ export function DashboardLayout() {
   const location = useLocation();
   const action = useAction();
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
   const user = auth.user!;
   const label =
     menus[user.role].find(
@@ -85,7 +93,7 @@ export function DashboardLayout() {
             ? "Agency workspace"
             : `${user.role} workspace`}
         </p>
-        <nav aria-label="Dashboard navigation">
+        <nav id="dashboard-navigation" aria-label="Dashboard navigation">
           {menus[user.role].map(([path, title, Icon]) => (
             <NavLink
               key={path}
@@ -138,6 +146,7 @@ export function DashboardLayout() {
               className="icon-button mobile-menu"
               aria-label="Open navigation"
               aria-expanded={open}
+              aria-controls="dashboard-navigation"
               onClick={() => setOpen(true)}
             >
               <Menu size={21} />

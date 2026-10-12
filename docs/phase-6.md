@@ -23,8 +23,8 @@ Names and synthetic streets use Faker's Italian locale. Names have a Demo prefix
 emails use reserved `example.com`, addresses have a Synthetic prefix, and every
 property has `is_synthetic=true`. Prices use exact decimals. Each property has
 three sampled amenities. Descriptions identify the data as demonstration records.
-No photograph files or image metadata are invented; existing upload workflows
-provide photos, and the interface shows its normal missing-image placeholders.
+The later [UI improvement](ui-improvements.md) adds bundled AI-generated sample
+photos to the demo properties. Existing upload workflows remain available.
 
 The first import anchors dates to Europe/Rome today, or `--as-of YYYY-MM-DD`.
 Listing windows span 400 days before to 730 days after the anchor. Histories cover

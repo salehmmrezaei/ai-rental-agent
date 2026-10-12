@@ -53,8 +53,10 @@ def unit_view(session, unit):
 
 
 def property_view(session, prop, detail=False):
-    values = {key: getattr(prop, key) for key in PropertyRead.model_fields if key != 'amenities'}
+    values = {key: getattr(prop, key) for key in PropertyRead.model_fields if key not in {'amenities', 'cover_image'}}
     values['amenities'] = repo.amenities(session, prop.id)
+    photos = repo.images(session, prop.id)
+    values['cover_image'] = image_view(photos[0]) if photos else None
     if not detail: return PropertyRead(**values)
     units = session.scalars(select(RentalUnit).where(RentalUnit.property_id == prop.id).order_by(RentalUnit.name)).all()
     return PropertyDetail(**values, units=[unit_view(session,u) for u in units],

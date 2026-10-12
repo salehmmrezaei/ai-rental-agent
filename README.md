@@ -177,7 +177,9 @@ Phase 6 provides 100 landlords, 200 tenants, one agency administrator and 300
 synthetic properties, with 75 each in Bologna, Milan, Rome and Florence. Every
 property has an apartment and two rooms. The dataset includes 900 listings (540
 published), valid rental histories, future applications, visits, conversations,
-messages, saved homes and amenities. Photos remain empty until uploaded.
+messages, saved homes and amenities. Each demo property has four bundled sample
+photos: an apartment interior, two private rooms and a shared kitchen. Normal
+uploads remain available and are preserved. See [UI and sample photos](docs/ui-improvements.md).
 
 Choose a 12–128 character `DEMO_PASSWORD` in your ignored `.env`. It is used only
 by the three accounts below; bulk accounts have independent random passwords.
@@ -379,7 +381,7 @@ backend/.venv/bin/python -m app.verify
 
 This starts the development stack, creates/reuses disposable `rental_phase6_test`
 and `rental_browser_test` databases, applies migrations, runs backend tests,
-frontend build/tests/lint, and all four Chrome tests. Backend tests truncate only
+frontend build/tests/lint, and all five Chrome tests. Backend tests truncate only
 the disposable backend database. Browser data is retained for rerun checks; test
 credentials are stored in ignored `frontend/.env.e2e.local`. The development
 database is separate. Ports 8001 and 5174 belong to the verification services.

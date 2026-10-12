@@ -8,6 +8,10 @@ import {
   CalendarDays,
   MessageSquare,
   FileText,
+  Heart,
+  KeyRound,
+  UsersRound,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
@@ -31,6 +35,34 @@ export function OverviewPage() {
   const { user } = useAuth();
   const data = useResource<Statistics>("/dashboard/statistics");
   const role = user!.role;
+  const destinations: Record<string, string> = {
+    pending_applications: "applications",
+    current_rentals: "contracts",
+    future_rentals: "contracts",
+    upcoming_visits: "visits",
+    saved_listings: "saved",
+    unread_messages: "messages",
+    properties: "properties",
+    contracts: "contracts",
+    published_listings: "properties",
+    users: "users",
+    pending_listings: "listings",
+    requested_visits: "visits",
+  };
+  const icons: Record<string, typeof Search> = {
+    pending_applications: FileText,
+    current_rentals: KeyRound,
+    future_rentals: KeyRound,
+    upcoming_visits: CalendarDays,
+    saved_listings: Heart,
+    unread_messages: MessageSquare,
+    properties: Building2,
+    contracts: FileText,
+    published_listings: Building2,
+    users: UsersRound,
+    pending_listings: ClipboardCheck,
+    requested_visits: CalendarDays,
+  };
   const actions =
     role === "tenant"
       ? [
@@ -108,18 +140,92 @@ export function OverviewPage() {
               ? "A clear view of your properties and the people they bring home."
               : "Everything your rental agency needs to keep things moving."
         }
+        action={
+          <Link
+            className="btn btn-primary"
+            to={
+              role === "landlord"
+                ? "/landlord/properties/new"
+                : role === "admin"
+                  ? "/admin/listings"
+                  : "/listings"
+            }
+          >
+            {role === "landlord"
+              ? "Add property"
+              : role === "admin"
+                ? "Review listings"
+                : "Explore homes"}
+            <ArrowUpRight size={17} />
+          </Link>
+        }
       />
       <Resource value={data}>
         {(stats) => (
           <>
+            {role !== "landlord" && (
+              <section className="attention-panel" aria-label="Your next steps">
+                <div className="attention-title">
+                  <span>
+                    <Bell size={20} />
+                  </span>
+                  <div>
+                    <h2>
+                      {role === "admin"
+                        ? "Needs your attention"
+                        : "Keep things moving"}
+                    </h2>
+                    <p>
+                      {role === "admin"
+                        ? "Open a queue to review requests or reply to tenants."
+                        : "Check your requests and stay in touch with the agency."}
+                    </p>
+                  </div>
+                </div>
+                <div className="attention-links">
+                  {(role === "admin"
+                    ? [
+                        "pending_listings",
+                        "pending_applications",
+                        "requested_visits",
+                        "unread_messages",
+                      ]
+                    : [
+                        "pending_applications",
+                        "upcoming_visits",
+                        "unread_messages",
+                      ]
+                  ).map((key) => (
+                    <Link key={key} to={`/${role}/${destinations[key]}`}>
+                      <span>{labels[key]}</span>
+                      <strong>{stats.counts[key] || 0}</strong>
+                      <ArrowRight size={15} />
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="stats-grid">
-              {Object.entries(stats.counts).map(([key, value]) => (
-                <article className="stat-card" key={key}>
-                  <span>{labels[key] || key.replaceAll("_", " ")}</span>
-                  <strong>{value}</strong>
-                  <small>Current account records</small>
-                </article>
-              ))}
+              {Object.entries(stats.counts).map(([key, value]) => {
+                const Icon = icons[key] || Building2;
+                return (
+                  <Link
+                    className="stat-card"
+                    key={key}
+                    to={`/${role}/${destinations[key] || ""}`}
+                  >
+                    <div className="stat-card-icon">
+                      <Icon size={19} />
+                      <ArrowUpRight size={16} />
+                    </div>
+                    <span>{labels[key] || key.replaceAll("_", " ")}</span>
+                    <strong>{value}</strong>
+                    <small>
+                      View details <ArrowRight size={13} />
+                    </small>
+                  </Link>
+                );
+              })}
             </div>
             {stats.occupancy && (
               <section className="occupancy-banner">
