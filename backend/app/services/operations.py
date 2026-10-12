@@ -3,7 +3,6 @@ from sqlalchemy import select, update, func
 from app.errors import ApiError
 from app.models import RentalRequest, RentalContract, RentalUnit, Property, Listing, Visit, Conversation, Message, User, SavedListing
 from app.repositories import inventory, operations as repo
-from app.schemas.operations import ApplicationRead
 from app.schemas.auth import UserProfile
 from app.services import transactions as tx
 
@@ -44,7 +43,7 @@ def create_application(session,user,data):
     if duplicate: raise ApiError(409,'duplicate_application','An application for these dates is already pending')
     req=RentalRequest(tenant_id=user.id,rental_unit_id=unit.id,start_date=data.start_date,end_date=data.end_date,note=data.note)
     session.add(req); session.flush()
-    return ApplicationRead.model_validate(req)
+    return repo.application_view(session,req)
 
 
 def lock_application(session,user,rid):
@@ -60,12 +59,12 @@ def lock_application(session,user,rid):
 def application_action(session,user,rid,action,note=None):
     req=lock_application(session,user,rid)
     allowed={'withdrawn':{'submitted','reviewing'},'reviewing':{'submitted'},'rejected':{'submitted','reviewing'}}
-    if req.status==action: return ApplicationRead.model_validate(req)
+    if req.status==action: return repo.application_view(session,req)
     if req.status not in allowed[action]: raise ApiError(409,'invalid_transition','Application cannot make this transition')
     req.status=action
     if note is not None: req.review_note=note
     session.flush(); session.refresh(req)
-    return ApplicationRead.model_validate(req)
+    return repo.application_view(session,req)
 
 
 def approve(session,user,rid,data):
@@ -127,7 +126,7 @@ def create_visit(session,user,data):
     if data.requested_at<=now(): raise ApiError(422,'past_visit','Requested visit must be in the future')
     visit=Visit(tenant_id=user.id,rental_unit_id=unit.id,requested_at=data.requested_at,note=data.note)
     session.add(visit); session.flush()
-    return repo.visit_view(visit,user)
+    return repo.visit_view(visit,user,session)
 
 
 def lock_visit(session,user,vid):
@@ -141,10 +140,10 @@ def lock_visit(session,user,vid):
 
 def cancel_visit(session,user,vid):
     visit=lock_visit(session,user,vid)
-    if visit.status=='cancelled': return repo.visit_view(visit,user)
+    if visit.status=='cancelled': return repo.visit_view(visit,user,session)
     if visit.status not in {'requested','scheduled'}: raise ApiError(409,'invalid_transition','Visit cannot be cancelled')
     visit.status='cancelled'; session.flush(); session.refresh(visit)
-    return repo.visit_view(visit,user)
+    return repo.visit_view(visit,user,session)
 
 
 def update_visit(session,user,vid,data):
@@ -168,7 +167,7 @@ def update_visit(session,user,vid,data):
     visit.status=data.status
     if data.agency_note is not None: visit.agency_note=data.agency_note
     session.flush(); session.refresh(visit)
-    return repo.visit_view(visit,user)
+    return repo.visit_view(visit,user,session)
 
 
 def owned_conversation(session,user,cid,lock=False):

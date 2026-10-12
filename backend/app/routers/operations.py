@@ -43,12 +43,12 @@ def applications(db:DB,user:Participant,status:dto.ApplicationStatus|None=None,r
     if status: query=query.where(RentalRequest.status==status)
     if rental_unit_id: query=query.where(RentalRequest.rental_unit_id==rental_unit_id)
     rows,total=repo.page(db,query,page,page_size,[RentalRequest.created_at.desc(),RentalRequest.id])
-    return Page(items=[dto.ApplicationRead.model_validate(r[0]) for r in rows],total=total,page=page,page_size=page_size)
+    return Page(items=[repo.application_view(db,r[0]) for r in rows],total=total,page=page,page_size=page_size)
 
 
 @router.get('/applications/{application_id}',response_model=dto.ApplicationRead)
 def application(application_id:UUID,db:DB,user:Participant):
-    return one(db,repo.applications(user).where(RentalRequest.id==application_id),'Application')
+    return repo.application_view(db,one(db,repo.applications(user).where(RentalRequest.id==application_id),'Application'))
 
 
 @router.post('/applications/{application_id}/withdraw',response_model=dto.ApplicationRead)
@@ -112,12 +112,12 @@ def visits(db:DB,user:Participant,status:dto.VisitStatus|None=None,period:Litera
     if period=='upcoming': query=query.where(instant>func.now(),Visit.status.in_(['requested','scheduled']))
     if period=='past': query=query.where(instant<=func.now())
     rows,total=repo.page(db,query,page,page_size,[Visit.requested_at,Visit.id])
-    return Page(items=[repo.visit_view(r[0],user) for r in rows],total=total,page=page,page_size=page_size)
+    return Page(items=[repo.visit_view(r[0],user,db) for r in rows],total=total,page=page,page_size=page_size)
 
 
 @router.get('/visits/{visit_id}',response_model=dto.AgencyVisitRead|dto.VisitRead)
 def visit(visit_id:UUID,db:DB,user:Participant):
-    return repo.visit_view(one(db,repo.visits(user).where(Visit.id==visit_id),'Visit'),user)
+    return repo.visit_view(one(db,repo.visits(user).where(Visit.id==visit_id),'Visit'),user,db)
 
 
 @router.post('/visits/{visit_id}/cancel',response_model=dto.VisitRead)

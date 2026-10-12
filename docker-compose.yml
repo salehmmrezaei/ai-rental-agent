@@ -43,6 +43,8 @@ services:
       retries: 5
   frontend:
     image: node:24-alpine
+    environment:
+      API_PROXY_TARGET: http://backend:8000
     working_dir: /app
     volumes:
       - ./frontend:/app

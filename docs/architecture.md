@@ -2,8 +2,8 @@
 
 ## Application boundaries
 
-React + Vite will use TypeScript, Tailwind, React Router, and a typed API client in
-Phase 5. The existing JavaScript starter is preserved until then. FastAPI exposes
+React + Vite uses TypeScript, Tailwind, React Router and a typed API client,
+implemented in Phase 5. FastAPI exposes
 versioned REST endpoints; routers validate Pydantic inputs and delegate to services.
 Services own authorization, state transitions, and transaction boundaries;
 repositories encapsulate queries. PostgreSQL is the source of truth. Alembic
@@ -72,7 +72,7 @@ erDiagram
   Different rooms may overlap. All noncancelled records reserve their historical
   interval, including completed and terminated contracts. Early termination will
   need an effective-date design in Phase 4 before releasing unused future dates.
-- Listing availability windows will be checked by the approval service in Phase 4,
+- Listing availability windows are checked by the approval service in Phase 4,
   together with publication state and authenticated permissions. The database
   foundation prevents rental conflicts even for direct SQL writes.
 - Message authors must be admins or the conversation's own tenant. Endpoint
@@ -104,8 +104,8 @@ Health endpoints were implemented in Phase 1. Phase 2 adds registration, login,
 logout, profiles, password changes and an admin user directory. Phase 3 adds inventory CRUD, image management, listing moderation/search and live
 availability. Phase 4 implements applications, contracts, visits, messaging, saves,
 account management and reporting. See the phase reports for exact implemented routes.
-Collections will use bounded page/page_size and allowlisted sorting/filtering.
-Errors will use a shared envelope in Phase 2.
+Collections use bounded page/page_size and allowlisted sorting/filtering.
+Errors use the shared envelope implemented in Phase 2.
 
 | Phase | Routes | Access |
 | --- | --- | --- |
@@ -170,7 +170,7 @@ in this phase. Model packages for later phases are intentionally reserved.
   HTTP 409 with transaction rollback. Self-service models forbid privileged fields.
 - User profiles are self/admin-only. Property/unit guards scope SQL queries by owner
   before returning data. Tenant or other-owner requests get the same 404 as missing
-  resources. The guards will be wired into the Phase 3 inventory routers.
+  resources. The guards are wired into the Phase 3 inventory routers.
 - Admin provisioning is a local password-prompt command, never public registration
   and never a promotion of an existing account. The new read-only admin directory
   exposes safe paginated user profiles.
@@ -243,3 +243,21 @@ in this phase. Model packages for later phases are intentionally reserved.
 
 Exact endpoints, accepted transitions and operational limitations are documented
 in [Phase 4](phase-4.md).
+
+
+## Phase 5 frontend decisions
+
+The React starter is replaced by strict TypeScript, Tailwind and React Router.
+Public listing pages and three role workspaces share form, pagination, dialog,
+loading/error and listing components. All product state lives in the existing
+FastAPI/PostgreSQL services; frontend tests alone mock fetch.
+
+The HTTP client sends revocable bearer tokens. Persistence stores only token/expiry,
+and session restoration calls the backend profile endpoint before exposing a
+private route. Expired/revoked sessions clear, tab changes synchronize, old reads
+abort, and resource identities include the authenticated account.
+
+Same-origin `/api` proxying avoids separate browser configuration for local/Docker
+development. Private images use authenticated blobs with URL cleanup. Scoped
+application/visit responses gain rental display names without a migration or
+changes to permissions. See [Phase 5](phase-5.md) for exact routes and checks.
