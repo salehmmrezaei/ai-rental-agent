@@ -66,6 +66,7 @@ export interface Property {
   postal_code: string;
   is_synthetic: boolean;
   amenities: string[];
+  cover_image?: PropertyImage | null;
 }
 export interface PropertyDetail extends Property {
   units: Unit[];

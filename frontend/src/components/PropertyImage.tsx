@@ -8,22 +8,25 @@ export function PropertyImage({
   image,
   privateImage = false,
   className = "",
+  eager = false,
 }: {
   image?: ImageType;
   privateImage?: boolean;
   className?: string;
+  eager?: boolean;
 }) {
   const { epoch } = useAuth();
   const [loaded, setLoaded] = useState<{ key: string; url: string } | null>(
     null,
   );
   const [failed, setFailed] = useState<string | null>(null);
-  const key = `${image?.url}:${epoch}`;
+  const imagePath = image?.url;
+  const key = `${imagePath}:${epoch}`;
   useEffect(() => {
-    if (!image || !privateImage) return;
+    if (!imagePath || !privateImage) return;
     const controller = new AbortController();
     let objectUrl: string | undefined;
-    imageBlob(image.url, controller.signal)
+    imageBlob(imagePath, controller.signal)
       .then((blob) => {
         if (!controller.signal.aborted) {
           objectUrl = URL.createObjectURL(blob);
@@ -37,7 +40,7 @@ export function PropertyImage({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [image?.url, privateImage, key]);
+  }, [imagePath, privateImage, key]);
   const url = privateImage
     ? loaded?.key === key
       ? loaded.url
@@ -63,7 +66,8 @@ export function PropertyImage({
       className={className}
       src={url}
       alt={image.alt_text}
-      loading="lazy"
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
       onError={() => setFailed(key)}
     />
   );

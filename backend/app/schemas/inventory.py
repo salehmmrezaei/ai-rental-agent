@@ -151,6 +151,7 @@ class PropertyRead(BaseModel):
     postal_code: str
     is_synthetic: bool
     amenities: list[str]
+    cover_image: ImageRead | None = None
     created_at: datetime
     updated_at: datetime
 

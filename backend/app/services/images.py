@@ -125,5 +125,10 @@ def readable_image(session, image_id, user=None):
         or_(image.rental_unit_id is None, RentalUnit.id==image.rental_unit_id, RentalUnit.kind=='apartment')).limit(1))
     if not privileged and not published: raise ApiError(404,'not_found','Image not found')
     path = storage_path(image.storage_key)
+    if not path.is_file():
+        from app.demo_images import bundled_image
+        sample = bundled_image(image)
+        if sample is not None:
+            path = sample
     if not path.is_file(): raise ApiError(404,'not_found','Image not found')
     return path

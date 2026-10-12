@@ -17,6 +17,8 @@ dependencies = [
 test = ["pytest>=8,<10", "httpx>=0.28,<1"]
 [tool.setuptools.packages.find]
 include = ["app*"]
+[tool.setuptools.package-data]
+app = ["demo_assets/*.webp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

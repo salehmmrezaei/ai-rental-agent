@@ -461,3 +461,82 @@ it("directory pagination in a form does not accidentally submit that form", asyn
   await screen.findByText("Page 2 of 2");
   expect(submitted).not.toHaveBeenCalled();
 });
+
+it("keeps selected rental dates when opening a search result", async () => {
+  mockApi(undefined, (path) =>
+    path === "/listings"
+      ? json(page([listing]))
+      : path === "/listings/listing-id"
+        ? json(listing)
+        : undefined,
+  );
+  renderApp(
+    "/listings?start_date=2027-01-01&end_date=2027-03-01&sort=price_asc",
+  );
+  const home = await screen.findByRole("link", {
+    name: listing.title,
+  });
+  expect(home.getAttribute("href")).toContain(
+    "start_date=2027-01-01&end_date=2027-03-01",
+  );
+  await userEvent.click(home);
+  await screen.findByRole("heading", { name: listing.title });
+  expect(screen.getByLabelText("Move-in")).toHaveValue("2027-01-01");
+  expect(screen.getByLabelText("Move-out")).toHaveValue("2027-03-01");
+  expect(
+    screen.getByRole("link", { name: "All homes" }).getAttribute("href"),
+  ).toContain("sort=price_asc");
+});
+
+it("removes paired rental-date filters together and sorts immediately", async () => {
+  const { calls } = mockApi(undefined, (path) =>
+    path === "/listings" ? json(page([listing])) : undefined,
+  );
+  renderApp("/listings?city=Bologna&start_date=2027-01-01&end_date=2027-03-01");
+  await screen.findByRole("heading", { name: listing.title });
+  await userEvent.click(
+    screen.getByRole("button", { name: /Remove .*Jan 2027.* filter/ }),
+  );
+  await waitFor(() =>
+    expect(calls.at(-1)?.url.searchParams.has("end_date")).toBe(false),
+  );
+  expect(calls.at(-1)?.url.searchParams.get("city")).toBe("Bologna");
+  await userEvent.selectOptions(screen.getByLabelText("Sort by"), "price_asc");
+  await waitFor(() =>
+    expect(calls.at(-1)?.url.searchParams.get("sort")).toBe("price_asc"),
+  );
+});
+
+it("opens a keyboard-navigable photo viewer and closes it", async () => {
+  const images = [1, 2].map((index) => ({
+    id: `photo-${index}`,
+    property_id: listing.property_id,
+    rental_unit_id: null,
+    alt_text: `Sample interior ${index}`,
+    position: index,
+    url: `/api/v1/images/00000000-0000-4000-8000-00000000000${index}`,
+  }));
+  mockApi(undefined, (path) =>
+    path === "/listings/listing-id" ? json({ ...listing, images }) : undefined,
+  );
+  renderApp("/listings/listing-id");
+  await screen.findByRole("heading", { name: listing.title });
+  await userEvent.click(
+    screen.getByRole("button", { name: "View photo 1 of 2" }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "Photos of this home" });
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Next photo" }),
+  );
+  expect(
+    within(dialog).getByRole("img", { name: "Sample interior 2" }),
+  ).toBeInTheDocument();
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(
+    within(dialog).getByRole("img", { name: "Sample interior 1" }),
+  ).toBeInTheDocument();
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Close dialog" }),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});

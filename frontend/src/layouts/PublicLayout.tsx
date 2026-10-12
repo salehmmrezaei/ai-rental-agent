@@ -71,7 +71,7 @@ export function PublicLayout() {
         <p className="footer-note">
           Made for life in Italy.
           <br />
-          Development properties are synthetic.
+          Demo homes use sample photos.
         </p>
       </footer>
     </div>

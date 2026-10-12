@@ -207,3 +207,74 @@ def test_seeded_accounts_search_and_scoped_dashboards(engine, seeded, monkeypatc
                     assert client.get("/api/v1/admin/users", headers=headers).status_code == 403
     finally:
         get_settings.cache_clear()
+
+
+def test_demo_photos_are_scoped_and_preserve_existing_uploads(engine, seeded):
+    from uuid import uuid4
+    from app.demo_images import seed_demo_images, bundled_image
+    from app.models import PropertyImage
+    with Session(engine) as s, s.begin():
+        upload = PropertyImage(id=uuid4(), property_id=record_id("property"),
+            rental_unit_id=None, storage_key="existing-upload.webp", alt_text="Owner's photo", position=0)
+        s.add(upload)
+        s.flush()
+        assert seed_demo_images(s)["created"] == 1200
+        assert seed_demo_images(s)["created"] == 0
+        photos = list(s.scalars(select(PropertyImage).where(PropertyImage.property_id == record_id("property")).order_by(PropertyImage.position)))
+        assert len(photos) == 5 and photos[0].id == upload.id
+        assert photos[0].alt_text == "Owner's photo" and bundled_image(photos[0]) is None
+        for photo in photos[1:]:
+            assert photo.alt_text.startswith("AI-generated sample:")
+            assert bundled_image(photo).is_file()
+        photos[1].alt_text = "Edited sample caption"
+        assert seed_demo_images(s)["created"] == 0
+        assert photos[1].alt_text == "Edited sample caption"
+        s.rollback()
+
+
+def test_demo_photos_use_normal_publication_and_owner_authorization(engine, seeded):
+    from app.demo_images import seed_demo_images, bundled_image
+    from app.models import PropertyImage
+    from app.errors import ApiError
+    from app.services.images import readable_image
+    from app.services.inventory import public_view, property_view
+    with Session(engine) as s, s.begin():
+        seed_demo_images(s)
+        photo = s.get(PropertyImage, record_id("photo"))
+        assert readable_image(s, photo.id).suffix == ".webp"
+        room = s.get(RentalUnit, record_id("unit", 1))
+        listing = s.get(Listing, record_id("listing", 1))
+        prop = s.get(Property, record_id("property"))
+        public = public_view(s, listing, room, prop)
+        assert len(public.images) == 2
+        assert public.images[0].rental_unit_id == room.id
+        assert public.images[1].rental_unit_id is None
+        assert property_view(s, prop).cover_image.id == photo.id
+        private = s.get(PropertyImage, record_id("photo", 180 * 4))
+        with pytest.raises(ApiError) as denied:
+            readable_image(s, private.id)
+        assert denied.value.status_code == 404
+        owner = s.get(User, record_id("landlord", 80))
+        assert readable_image(s, private.id, owner).is_file()
+        with pytest.raises(ApiError):
+            readable_image(s, private.id, s.get(User, record_id("landlord")))
+        for index in range(3):
+            s.get(Listing, record_id("listing", index)).status = "unpublished"
+        s.flush()
+        with pytest.raises(ApiError):
+            readable_image(s, photo.id)
+        # Record-specific keys cannot point to arbitrary paths or different assets.
+        photo.storage_key = f"demo-v1-{photo.id.hex}-../../outside.webp"
+        assert bundled_image(photo) is None
+        s.rollback()
+
+
+def test_demo_photo_import_refuses_incomplete_data_atomically(engine, seeded):
+    from app.demo_images import seed_demo_images
+    from app.models import PropertyImage
+    with Session(engine) as s, s.begin():
+        s.execute(text(TRUNCATE))
+        with pytest.raises(SeedError, match="complete demo data"):
+            seed_demo_images(s)
+        assert s.scalar(select(func.count()).select_from(PropertyImage)) == 0
+        s.rollback()

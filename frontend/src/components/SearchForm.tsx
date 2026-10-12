@@ -7,9 +7,11 @@ export const cities = ["Bologna", "Milan", "Rome", "Florence"];
 export function SearchForm({
   initial = new URLSearchParams(),
   compact = false,
+  onApplied,
 }: {
   initial?: URLSearchParams;
   compact?: boolean;
+  onApplied?: () => void;
 }) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,9 @@ export function SearchForm({
         const values: Record<string, string> = {};
         for (const [key, value] of data.entries())
           if (String(value).trim()) values[key] = String(value).trim();
+        if (compact && initial.get("sort")) values.sort = initial.get("sort")!;
         navigate(`/listings?${queryString(values)}`);
+        onApplied?.();
       }}
     >
       <Select
@@ -102,15 +106,6 @@ export function SearchForm({
               </option>
             ))}
           </Select>
-          <Select
-            label="Sort by"
-            name="sort"
-            defaultValue={initial.get("sort") || "newest"}
-          >
-            <option value="newest">Newest first</option>
-            <option value="price_asc">Rent: low to high</option>
-            <option value="price_desc">Rent: high to low</option>
-          </Select>
         </>
       )}
       <Button type="submit">
@@ -118,6 +113,9 @@ export function SearchForm({
         {compact ? "Apply filters" : "Find your home"}
       </Button>
       <Feedback error={error} />
+      {!compact && (
+        <p className="search-date-hint">Just exploring? Leave dates empty.</p>
+      )}
     </form>
   );
 }

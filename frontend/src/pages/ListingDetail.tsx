@@ -4,6 +4,7 @@ import {
   useNavigate,
   useParams,
   useSearchParams,
+  useLocation,
 } from "react-router-dom";
 import {
   Heart,
@@ -13,13 +14,14 @@ import {
   CalendarDays,
   ArrowRight,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { api, queryString } from "../api/client";
 import type { Availability, PublicListing } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
 import { useAction } from "../hooks/useAction";
-import { PropertyImage } from "../components/PropertyImage";
+import { PhotoGallery } from "../components/PhotoGallery";
 import {
   BackLink,
   Button,
@@ -38,6 +40,13 @@ export function ListingDetailPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const previousSearch = location.state?.returnTo;
+  const backTo =
+    typeof previousSearch === "string" &&
+    /^\/listings(?:\?|$)/.test(previousSearch)
+      ? previousSearch
+      : "/listings";
   const { user } = useAuth();
   const resource = useResource<PublicListing>(`/listings/${id}`);
   const save = useAction();
@@ -54,10 +63,11 @@ export function ListingDetailPage() {
   const [saved, setSaved] = useState(false);
   const check = useAction();
   const key = `${start}:${end}`;
+  const detailPath = `/listings/${id}${start && end ? `?${queryString({ start_date: start, end_date: end })}` : ""}`;
   const availability = checked?.key === key ? checked.result : null;
   function tenantAction(next: "apply" | "visit" | "message") {
     if (!user) {
-      navigate(`/login?next=${encodeURIComponent(`/listings/${id}`)}`);
+      navigate(`/login?next=${encodeURIComponent(detailPath)}`);
       return;
     }
     if (user.role !== "tenant") return;
@@ -66,7 +76,7 @@ export function ListingDetailPage() {
   }
   return (
     <div className="container detail-page">
-      <BackLink to="/listings">All homes</BackLink>
+      <BackLink to={backTo}>All homes</BackLink>
       <Resource value={resource}>
         {(listing) => (
           <>
@@ -84,7 +94,7 @@ export function ListingDetailPage() {
                 </p>
                 {listing.is_synthetic && (
                   <small className="synthetic-note">
-                    Synthetic development property
+                    Demo property · sample photos
                   </small>
                 )}
               </div>
@@ -95,9 +105,7 @@ export function ListingDetailPage() {
                   disabled={saved}
                   onClick={() => {
                     if (!user) {
-                      navigate(
-                        `/login?next=${encodeURIComponent(`/listings/${id}`)}`,
-                      );
+                      navigate(`/login?next=${encodeURIComponent(detailPath)}`);
                       return;
                     }
                     void save.run(async () => {
@@ -115,18 +123,7 @@ export function ListingDetailPage() {
               )}
             </div>
             <Feedback error={save.error} success={save.success} />
-            <div
-              className={`detail-gallery ${listing.images.length > 1 ? "has-more" : ""}`}
-            >
-              <PropertyImage image={listing.images[0]} />
-              {listing.images.length > 1 && (
-                <div className="gallery-more">
-                  {listing.images.slice(1).map((image) => (
-                    <PropertyImage key={image.id} image={image} />
-                  ))}
-                </div>
-              )}
-            </div>
+            <PhotoGallery images={listing.images} />
             <div className="detail-layout">
               <article>
                 <div className="detail-facts">
@@ -194,7 +191,16 @@ export function ListingDetailPage() {
                 <p className="rent">
                   <strong>{money(listing.monthly_rent)}</strong> / month
                 </p>
-                <p className="muted">Deposit: {money(listing.deposit)}</p>
+                <div className="booking-summary">
+                  <span>Monthly rent</span>
+                  <strong>{money(listing.monthly_rent)}</strong>
+                  <span>Security deposit</span>
+                  <strong>{money(listing.deposit)}</strong>
+                </div>
+                <p className="booking-instruction">
+                  <CalendarDays size={18} />
+                  Choose your dates to check availability.
+                </p>
                 <form
                   className="form-stack"
                   onSubmit={(event) => {
@@ -280,6 +286,12 @@ export function ListingDetailPage() {
                   </p>
                 )}
                 <small>No payment is taken when you apply.</small>
+                <div className="booking-reassurance">
+                  <ShieldCheck size={18} />
+                  <span>
+                    The agency reviews your request and confirms availability.
+                  </span>
+                </div>
               </aside>
             </div>
             {modal && (

@@ -5,89 +5,14 @@ import {
   CalendarCheck,
   MessageCircle,
   ArrowRight,
+  Building2,
 } from "lucide-react";
 import { SearchForm, cities } from "../components/SearchForm";
 import { useResource } from "../hooks/useResource";
 import type { Page, PublicListing } from "../api/types";
 import { Resource, Empty } from "../components/ui";
 import { ListingCard } from "../components/ListingCard";
-function CityIllustration() {
-  return (
-    <svg viewBox="0 0 600 480" className="city-illustration" aria-hidden="true">
-      <defs>
-        <pattern
-          id="map-grid"
-          width="44"
-          height="44"
-          patternUnits="userSpaceOnUse"
-        >
-          <path
-            d="M 44 0 L 0 0 0 44"
-            fill="none"
-            stroke="#cbd2bc"
-            strokeWidth=".8"
-          />
-        </pattern>
-      </defs>
-      <rect width="600" height="480" fill="#e6eadc" />
-      <rect width="600" height="480" fill="url(#map-grid)" />
-      <path
-        d="M-30 410L190 250 290 300 650 70M210-30L210 195 360 240 360 510"
-        stroke="#f9f9f1"
-        strokeWidth="30"
-        fill="none"
-      />
-      <path
-        d="M-30 410L190 250 290 300 650 70"
-        stroke="#c1c9b4"
-        strokeWidth="1"
-        strokeDasharray="5 8"
-        fill="none"
-      />
-      <g transform="translate(105 100)">
-        <path d="M0 130L105 70 245 145 140 206Z" fill="#bcc9b4" />
-        <path d="M25 102L110 53 110 164 25 213Z" fill="#decdb1" />
-        <path d="M110 53L228 121 228 231 110 164Z" fill="#f2e5cc" />
-        <path d="M25 102L110 53 228 121 143 169Z" fill="#a08068" />
-        <path d="M25 102L143 169 143 180 25 112Z" fill="#805d49" />
-        <g fill="#456355">
-          <path d="M43 131L62 120 62 144 43 155Z M76 112L95 101 95 125 76 136Z M43 172L62 161 62 185 43 196Z M76 153L95 142 95 166 76 177Z" />
-          <path d="M132 111L153 123 153 147 132 135Z M168 132L188 144 188 168 168 156Z M203 152L220 162 220 186 203 176Z M132 152L153 164 153 189 132 177Z M168 173L188 185 188 210 168 198Z" />
-        </g>
-        <path d="M200 205L216 214 216 239 200 230Z" fill="#755d4a" />
-      </g>
-      <g transform="translate(365 67)">
-        <path d="M0 90L66 52 135 92 69 131Z" fill="#bcc9b4" />
-        <path d="M10 66L68 32 68 99 10 133Z" fill="#c38f75" />
-        <path d="M68 32L124 65 124 132 68 99Z" fill="#e9bfa2" />
-        <path d="M10 66L65 2 124 65 68 98Z" fill="#765d4d" />
-        <path d="M65 2L68 32 10 66Z" fill="#937360" />
-        <path
-          d="M80 75L95 84 95 103 80 94Z M105 90L117 97 117 116 105 109Z M27 77L44 67 44 85 27 95Z"
-          fill="#3e6052"
-        />
-      </g>
-      <g fill="#77976b">
-        <ellipse cx="395" cy="348" rx="28" ry="17" fill="#c6d2b7" />
-        <rect x="390" y="305" width="7" height="45" fill="#8a7056" />
-        <circle cx="393" cy="292" r="31" />
-        <rect x="79" y="304" width="6" height="37" fill="#8a7056" />
-        <circle cx="82" cy="290" r="24" />
-        <rect x="475" y="230" width="6" height="37" fill="#8a7056" />
-        <circle cx="478" cy="217" r="24" />
-      </g>
-      <g transform="translate(286 134)">
-        <path
-          d="M0 0C-34 0-46 39-23 63L0 89 23 63C46 39 34 0 0 0"
-          fill="#173f35"
-        />
-        <circle cy="29" r="14" fill="#f5f2e8" />
-        <path d="M-7 31V24L0 19 7 24V36H-7Z" fill="#173f35" />
-      </g>
-      <circle cx="286" cy="227" r="12" fill="#173f35" opacity=".12" />
-    </svg>
-  );
-}
+import heroPhoto from "../assets/hero-living-v2.webp";
 export function Home() {
   const listings = useResource<Page<PublicListing>>("/listings?page_size=3");
   return (
@@ -107,17 +32,36 @@ export function Home() {
             From a room in Bologna to an apartment in Milan. Find a place that
             fits your life, with an agency by your side.
           </p>
+          <div className="hero-shortcuts">
+            <Link to="/listings?property_type=room">
+              Explore private rooms <ArrowUpRight size={16} />
+            </Link>
+            <Link to="/listings?property_type=apartment">
+              Find an apartment <ArrowUpRight size={16} />
+            </Link>
+          </div>
           <div className="hero-footnote">
             <ShieldCheck size={19} />
             One agency. Every step of the way.
           </div>
         </div>
         <div className="hero-art">
-          <CityIllustration />
-          <div className="map-note">
-            <span className="small-dot" />A little closer to your next home.
+          <img
+            src={heroPhoto}
+            alt="AI-generated sample of a bright Italian apartment"
+            className="hero-photo"
+            fetchPriority="high"
+          />
+          <div className="home-photo-note">
+            <span className="home-photo-icon">
+              <Building2 size={22} />
+            </span>
+            <div>
+              <strong>A space that feels like you.</strong>
+              <span>Rooms & apartments, with agency support</span>
+            </div>
           </div>
-          <span className="map-coordinate">44°29′ N &nbsp; 11°20′ E</span>
+          <span className="hero-photo-label">Sample interior</span>
         </div>
         <div className="hero-search-wrap">
           <SearchForm />

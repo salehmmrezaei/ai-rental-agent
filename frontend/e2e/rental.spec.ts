@@ -400,6 +400,104 @@ test("public desktop and mobile pages are accessible and do not overflow", async
   }
 });
 
+test("sample photos, date filters and dashboard shortcuts work on desktop and mobile", async ({
+  page,
+}) => {
+  test.skip(!process.env.E2E_DEMO_PASSWORD, "Requires the demo portfolio");
+  const start = dateIn(150),
+    end = dateIn(240);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(
+    `/listings?city=Bologna&property_type=room&sort=price_asc&start_date=${start}&end_date=${end}`,
+  );
+  const cover = page.locator(".listing-card .listing-photo img").first();
+  await expect(cover).toBeVisible();
+  await expect
+    .poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0);
+  await page.screenshot({
+    path: "/private/tmp/casa-search-v2-1440.png",
+    fullPage: true,
+  });
+  await page.locator(".listing-card .listing-photo").first().click();
+  await expect(page.getByLabel("Move-in", { exact: true })).toHaveValue(start);
+  await expect(page.getByLabel("Move-out", { exact: true })).toHaveValue(end);
+  await expect(page.locator(".gallery-feature img")).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .locator(".gallery-feature img")
+        .evaluate((img: HTMLImageElement) => img.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await page.screenshot({
+    path: "/private/tmp/casa-detail-v2-1440.png",
+    fullPage: true,
+  });
+  const detailAxe = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(detailAxe.violations).toEqual([]);
+  await page.getByRole("button", { name: /^View photo 1 of/ }).click();
+  const viewer = page.getByRole("dialog", { name: "Photos of this home" });
+  await expect(viewer).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(viewer.getByText("2 of 2", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto("/listings?city=Bologna&sort=price_asc");
+  await expect(page.locator("#search-filters")).toBeHidden();
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await expect(page.locator("#search-filters")).toBeVisible();
+  await page.getByLabel("Max. rent (€ / month)").fill("800");
+  await page.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page).toHaveURL(/max_price=800/);
+  await expect(page.getByLabel("Sort by")).toHaveValue("price_asc");
+  await page.getByRole("button", { name: "Remove Up to €800 filter" }).click();
+  await expect(page).not.toHaveURL(/max_price/);
+  await expect(page.locator(".listing-card").first()).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "/private/tmp/casa-search-v2-390.png",
+    fullPage: true,
+  });
+  await signIn(page, "demo.tenant@example.com", process.env.E2E_DEMO_PASSWORD!);
+  await page
+    .locator(".stats-grid")
+    .getByRole("link", { name: /Saved homes/ })
+    .click();
+  await expect(page).toHaveURL(/\/tenant\/saved$/);
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await signIn(
+    page,
+    "demo.landlord@example.com",
+    process.env.E2E_DEMO_PASSWORD!,
+  );
+  await page.goto("/landlord/properties");
+  const privateCover = page.locator(".property-cover img").first();
+  await expect(privateCover).toBeVisible();
+  await expect
+    .poll(() =>
+      privateCover.evaluate((img: HTMLImageElement) => img.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await expect(privateCover).toHaveAttribute("src", /^blob:/);
+  await page.screenshot({
+    path: "/private/tmp/casa-properties-v2-390.png",
+    fullPage: true,
+  });
+  const ownerAxe = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(ownerAxe.violations).toEqual([]);
+});
+
 test("agency dashboards are accessible on desktop and mobile", async ({
   page,
 }) => {
