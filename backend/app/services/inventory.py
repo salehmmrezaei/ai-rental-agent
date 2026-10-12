@@ -28,6 +28,8 @@ def lock_property(session, property_id, user):
         query = query.where(Property.landlord_id == user.id)
     prop = session.scalar(query.with_for_update().execution_options(populate_existing=True))
     if prop is None: raise ApiError(404, 'not_found', 'Property not found')
+    prop.booking_revision += 1
+    session.flush()
     return prop
 
 

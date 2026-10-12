@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 from sqlalchemy import (Boolean, CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint,
                         Index, Integer, Numeric, String, Text, UniqueConstraint, text)
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, Record
 
@@ -82,6 +83,7 @@ class RentalRequest(Record, Base):
     end_date: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(20), default="submitted", server_default="submitted", index=True)
     note: Mapped[str | None] = mapped_column(Text)
+    review_note: Mapped[str | None] = mapped_column(Text)
     __table_args__ = (
         ForeignKeyConstraint(["tenant_id", "tenant_role"], ["users.id", "users.role"], ondelete="RESTRICT"),
         CheckConstraint("tenant_role = 'tenant'", name="tenant_role"),
@@ -98,12 +100,14 @@ class RentalContract(Record, Base):
     rental_unit_id: Mapped[UUID] = mapped_column(ForeignKey("rental_units.id", ondelete="RESTRICT"), index=True)
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
+    terminated_on: Mapped[date | None] = mapped_column(Date)
     monthly_rent: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     status: Mapped[str] = mapped_column(String(20), default="confirmed", server_default="confirmed", index=True)
     __table_args__ = (
         ForeignKeyConstraint(["rental_request_id", "tenant_id", "rental_unit_id", "start_date", "end_date"],
             ["rental_requests.id", "rental_requests.tenant_id", "rental_requests.rental_unit_id", "rental_requests.start_date", "rental_requests.end_date"], ondelete="RESTRICT"),
         CheckConstraint("end_date > start_date", name="dates"),
+        CheckConstraint("terminated_on IS NULL OR (status = 'terminated' AND terminated_on > start_date AND terminated_on <= end_date)", name="termination"),
         CheckConstraint("monthly_rent > 0", name="rent"),
         status_check("status", "confirmed active completed terminated cancelled"),
         Index("ix_contract_unit_dates", "rental_unit_id", "start_date", "end_date"),
@@ -137,9 +141,22 @@ class Visit(Record, Base):
     rental_unit_id: Mapped[UUID] = mapped_column(ForeignKey("rental_units.id", ondelete="RESTRICT"), index=True)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scheduled_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    duration_minutes: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
+    assigned_admin_id: Mapped[UUID | None] = mapped_column(index=True)
+    assigned_admin_role: Mapped[str] = mapped_column(String(20), default="admin", server_default="admin")
+    agency_note: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="requested", server_default="requested", index=True)
     note: Mapped[str | None] = mapped_column(Text)
     __table_args__ = (
+        ForeignKeyConstraint(["assigned_admin_id", "assigned_admin_role"], ["users.id", "users.role"], ondelete="RESTRICT"),
+        CheckConstraint("assigned_admin_role = 'admin'", name="assigned_admin_role"),
+        CheckConstraint("duration_minutes BETWEEN 1 AND 180", name="duration"),
+        CheckConstraint("status NOT IN ('scheduled','completed') OR (scheduled_at IS NOT NULL AND scheduled_end_at IS NOT NULL AND scheduled_end_at = scheduled_at + make_interval(mins => duration_minutes))", name="schedule_end"),
+        ExcludeConstraint(('assigned_admin_id', '='), (text("tstzrange(scheduled_at, scheduled_end_at, '[)')"), '&&'),
+            name="ex_visits_staff_overlap", using="gist", where=text("status = 'scheduled' AND assigned_admin_id IS NOT NULL")),
+        ExcludeConstraint(('tenant_id', '='), (text("tstzrange(scheduled_at, scheduled_end_at, '[)')"), '&&'),
+            name="ex_visits_tenant_overlap", using="gist", where=text("status = 'scheduled'")),
         ForeignKeyConstraint(["tenant_id", "tenant_role"], ["users.id", "users.role"], ondelete="RESTRICT"),
         CheckConstraint("tenant_role = 'tenant'", name="tenant_role"),
         status_check("status", "requested scheduled completed cancelled rejected"),

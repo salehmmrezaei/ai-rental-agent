@@ -1,16 +1,18 @@
 # AI Rental Agent
 
-Incremental rental management platform. **Phases 1–3: database, authentication and rental inventory** are
+Incremental rental management platform. **Phases 1–4: database, authentication, inventory and rental operations** are
 implemented. The backend exposes registration/login, revocable JWT authentication,
 profile management, properties/units, secure images, listing moderation/search,
-availability, an admin user directory, health checks and OpenAPI documentation.
-Rental application and contract APIs follow in Phase 4. The existing React/Vite
+availability, transactional applications/contracts, visits, private agency messaging,
+saved listings, occupancy reports, dashboard statistics, admin account management,
+health checks and OpenAPI documentation. The existing React/Vite
 starter is preserved; it is not yet the rental interface.
 
 See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 1 implementation and verification](docs/phase-1.md), and
 [Phase 2 implementation and verification](docs/phase-2.md), and
-[Phase 3 implementation and verification](docs/phase-3.md).
+[Phase 3 implementation and verification](docs/phase-3.md), and
+[Phase 4 implementation and verification](docs/phase-4.md).
 
 ## Local development with Docker
 
@@ -94,7 +96,10 @@ message authorship, image/unit consistency, CORS and health checks. Authenticati
 tests verify hashed passwords, registration restrictions, JWT validation, live account
 status and role checks, token revocation, profile privacy and ownership dependencies. Competing-write
 tests prove the second transaction blocks on the property row and cannot commit a
-conflicting contract under READ COMMITTED or REPEATABLE READ.
+conflicting contract under READ COMMITTED or REPEATABLE READ. Phase 4 also tests
+complete approvals under SERIALIZABLE, transaction retries, concurrent visit
+scheduling, effective termination, scoped messages/read receipts, saved listings
+and role-specific reporting.
 
 ## Authentication API
 
@@ -264,20 +269,42 @@ and back up files with metadata. Missing files return 404 rather than exposing p
 
 ## Current scope and next phase
 
-Phase 3 inventory, moderation, uploads, search and availability are complete. The
-admin user directory remains read-only; full agency user management follows in
-rental operations. The frontend is still the preserved React starter; product pages,
+Phases 1–4 are complete: inventory, moderation, uploads, search, availability,
+rental operations, private messaging, reporting and agency account management. The frontend is still the preserved React starter; product pages,
 TypeScript/Tailwind, routing and authentication persistence belong to Phase 5.
 
 Password recovery and email verification are not implemented. No external email
 is sent. Demo accounts and the Faker dataset remain Phase 6 work. No real users,
 real payments, outgoing messages or OpenAI calls were introduced.
 
-Phase 4 will implement transactional rental applications and approval/rejection,
-contract lifecycle management, visits, tenant-to-agency messaging, occupancy reporting,
-and transaction retry/error handling. AI starts only after the core platform is
+Phase 5 will build the public website and tenant, landlord and admin dashboards
+connected to these backend routes. AI starts only after the core platform is
 operational and tested.
 
 Docker configuration was validated, but full Compose startup could not be tested
 because the Docker daemon was stopped. PostgreSQL migration and database tests
 were executed on an isolated local PostgreSQL server; see the verification report.
+
+## Rental operations API
+
+Phase 4 routes are implemented under `/api/v1`. All require a bearer token;
+collections support `page` and `page_size` (maximum 100). See the
+[Phase 4 route table, lifecycle rules and verification](docs/phase-4.md) for details.
+
+- Tenants submit `/applications`, withdraw pending requests, request `/visits`,
+  cancel visits, use `/conversations` and save `/saved-listings`.
+- Agency administrators review, approve or reject applications and manage
+  `/admin/contracts`, `/admin/visits` and `/admin/users/{id}`. Approval returns a
+  confirmed contract after rechecking availability in the same transaction.
+- `/contracts` shows a tenant's own contracts, an owner's redacted contracts,
+  or the agency's full directory.
+- `/dashboard/statistics` is role-scoped; `/occupancy` reports only the owner's
+  properties or the agency's full portfolio.
+
+Apply `backend/.venv/bin/alembic -c backend/alembic.ini upgrade head` from the
+project root before starting this version. Migration
+`0004_operations` installs PostgreSQL `btree_gist` for visit exclusions. Rental
+dates are half-open: end dates can start another rental. Visits require timezone
+offsets and use UTC; business occupancy dates use Europe/Rome.
+
+Phase 5 will build the frontend; the React starter remains available.
