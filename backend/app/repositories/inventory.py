@@ -14,7 +14,7 @@ def conflict_exists(unit, start, end):
     return select(RentalContract.id).join(other, other.id == RentalContract.rental_unit_id).where(
         other.property_id == unit.property_id,
         RentalContract.status != 'cancelled',
-        RentalContract.start_date < end, RentalContract.end_date > start,
+        RentalContract.start_date < end, func.coalesce(RentalContract.terminated_on, RentalContract.end_date) > start,
         or_(other.id == unit.id, other.kind == 'apartment', unit.kind == 'apartment')
     ).correlate(unit).exists()
 

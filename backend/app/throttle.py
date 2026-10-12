@@ -35,6 +35,6 @@ def install_auth_throttle(app, limit: int):
                 return JSONResponse(status_code=429, headers={"Retry-After": str(delay)},
                     content={"error": {"code": "rate_limited", "message": "Too many authentication attempts"}})
         response = await call_next(request)
-        if request.url.path.startswith(("/api/v1/auth", "/api/v1/users", "/api/v1/admin")):
+        if request.url.path.startswith(("/api/v1/auth", "/api/v1/users", "/api/v1/admin", "/api/v1/applications", "/api/v1/contracts", "/api/v1/visits", "/api/v1/conversations", "/api/v1/saved-listings", "/api/v1/dashboard", "/api/v1/occupancy")):
             response.headers["Cache-Control"] = "no-store"
         return response

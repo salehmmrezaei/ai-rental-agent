@@ -102,7 +102,8 @@ APIs must enforce initial states and agency permissions.
 
 Health endpoints were implemented in Phase 1. Phase 2 adds registration, login,
 logout, profiles, password changes and an admin user directory. Phase 3 adds inventory CRUD, image management, listing moderation/search and live
-availability. Rental operation routes remain planned. See the Phase 2 report for exact implemented routes.
+availability. Phase 4 implements applications, contracts, visits, messaging, saves,
+account management and reporting. See the phase reports for exact implemented routes.
 Collections will use bounded page/page_size and allowlisted sorting/filtering.
 Errors will use a shared envelope in Phase 2.
 
@@ -117,17 +118,17 @@ Errors will use a shared envelope in Phase 2.
 | 3 | POST /listings/{id}/submit; PATCH /admin/listings/{id}/status | Owner submit; agency moderation |
 | 4 | GET/POST /applications; POST /admin/applications/{id}/approve or /reject | Tenant own; agency decisions |
 | 4 | GET /contracts; PATCH /admin/contracts/{id} | Tenant own, redacted owner, agency |
-| 4 | GET/POST /visits; PATCH /visits/{id} | Tenant own; agency scheduling |
+| 4 | GET/POST /visits; PATCH /admin/visits/{id} | Tenant own; agency scheduling |
 | 4 | GET/POST /conversations; GET/POST /conversations/{id}/messages | Own tenant and agency only |
 | 4 | GET/PATCH /admin/users/{id}; GET /admin/users | Agency only |
 | 4 | GET /dashboard/statistics; GET/POST/DELETE /saved-listings | Role-scoped statistics; tenant saves |
 | 7 | POST /assistant/chat; POST /assistant/actions/{id}/confirm | Tenant-scoped tools and explicit action confirmation |
 
 Tenant registration cannot choose admin privileges. Owner queries must always
-scope by authenticated landlord ID. Contract approval will lock the application,
+scope by authenticated landlord ID. Contract approval locks the property and application,
 validate availability, approve it and insert its contract in one transaction.
-Landlord contract responses must omit tenant private fields. Admin account
-provisioning will use a separate development/bootstrap command.
+Landlord contract responses omit tenant private fields. Admin account
+provisioning uses the separate development/bootstrap command.
 
 ## Roadmap and acceptance gates
 
@@ -206,3 +207,39 @@ in this phase. Model packages for later phases are intentionally reserved.
 - Local filesystem writes cannot share PostgreSQL's transaction: failed inserts
   remove new files, successful metadata deletes trigger file cleanup, and crash
   or cleanup leftovers require reconciliation. Unreferenced files are never public.
+
+
+## Phase 4 rental operation decisions
+
+- Every new mutation runs in an independent transaction with fresh account and
+  role checks. PostgreSQL serialization failures (`40001`) and deadlocks (`40P01`)
+  roll back and retry the **entire** operation, at most three attempts.
+  Exclusion, uniqueness and lifecycle conflicts return sanitized HTTP 409 errors.
+  See [PostgreSQL retry guidance](https://www.postgresql.org/docs/16/mvcc-serialization-failure-handling.html).
+- Booking writes take the property lock before the application/contract/visit lock
+  and update `booking_revision`. Listing changes share that property lock.
+  Approval rechecks publication, the complete availability window and apartment/room
+  conflicts, then approves and inserts the contract atomically. The contract trigger
+  remains a final defense, including against direct database writes.
+- Contracts retain their original dates and parties. `terminated_on` is an
+  immutable effective end, recorded only when terminating an active lease; all
+  availability and reports use it. Cancelled contracts reserve no dates. Legacy
+  terminated rows without an effective end retain their original interval.
+- Visits store a UTC start/end, duration and assigned active agency administrator.
+  GiST exclusion constraints prevent simultaneous appointments for one staff
+  member or tenant, including across properties. Adjacent visits are allowed.
+  See [PostgreSQL ranges and exclusion constraints](https://www.postgresql.org/docs/17/rangetypes.html).
+- Conversations belong to one tenant and the agency. Read receipts mark only
+  incoming messages and are shared across agency staff. Sent content and identity
+  are immutable. Tenant responses identify the sender as tenant/agency without
+  exposing staff IDs; landlords cannot access correspondence or applications.
+- Reports count rooms as physical units when a property has room inventory; the
+  apartment is an alternative booking mode. A whole-apartment lease occupies all
+  rooms and contributes its rent once. `contracted_monthly_rent` sums current
+  contracts and represents neither collected payments nor payment processing.
+- Admin edits allow name, email and activation changes; email/activation changes
+  revoke tokens. Roles/passwords cannot be edited through this endpoint. Active
+  admins lock in stable order and cannot deactivate themselves.
+
+Exact endpoints, accepted transitions and operational limitations are documented
+in [Phase 4](phase-4.md).
