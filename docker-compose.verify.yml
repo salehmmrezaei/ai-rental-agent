@@ -1,0 +1,53 @@
+# Optional browser verification stack; start only with the documented command.
+# The test database must be created first. Main development data stays separate.
+services:
+  verify-migrate:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/rental_browser_test
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+  verify-backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/rental_browser_test
+      UPLOAD_DIR: /app/uploads
+      AUTH_RATE_LIMIT: 100
+    volumes:
+      - verify_image_data:/app/uploads
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      verify-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  verify-frontend:
+    image: node:24-alpine
+    environment:
+      API_PROXY_TARGET: http://verify-backend:8000
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - verify_frontend_modules:/app/node_modules
+    command: ["sh", "-c", "npm ci && npm run dev -- --host 0.0.0.0"]
+    ports:
+      - "127.0.0.1:5174:5173"
+    depends_on:
+      verify-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+volumes:
+  verify_image_data:
+  verify_frontend_modules:
