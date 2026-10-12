@@ -125,3 +125,6 @@ Bulk Faker data, documented demo accounts and full Docker Compose startup valida
 remain Phase 6. An empty development database shows empty states until owners create
 properties and the agency publishes listings. No payments, outgoing messages or AI
 integration were introduced. Phase 7 remains gated on the core integration work.
+
+The remaining dataset and Docker integration work above is now delivered in
+[Phase 6](phase-6.md); this report records the original Phase 5 verification.

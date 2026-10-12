@@ -60,8 +60,18 @@ E2E_DATABASE_URL='postgresql+psycopg://YOUR_USER:YOUR_PASSWORD@127.0.0.1:5432/re
 ```
 
 Playwright owns the Vite server on port 5174. E2E_API_TARGET overrides its backend
-proxy when necessary. Screenshots and test reports are ignored. Browser checks
+proxy when necessary. Set E2E_BASE_URL to test an already-running frontend;
+Playwright then uses that URL without starting Vite. E2E_SEED_DEMO=1 and a local
+E2E_DEMO_PASSWORD enable the complete Faker dataset and fourth browser test.
+Screenshots and test reports are ignored. Browser checks
 cover persisted rental journeys, desktop/mobile layouts and automated WCAG checks;
 manual assistive-technology review remains deployment work.
 
 See [Phase 5 implementation](../docs/phase-5.md) for routes, decisions and verification.
+
+Phase 6 provides populated demo accounts and verifies all three roles against
+Docker. From the repository root, `backend/.venv/bin/python -m app.verify` runs
+the complete suite with separate disposable databases and automatically manages
+the verification frontend on port 5174. See [Phase 6](../docs/phase-6.md) and the
+root README for demo credentials and setup. The normal development site remains
+http://localhost:5173.

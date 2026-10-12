@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 async function signIn(page: Page, email: string, password: string) {
@@ -14,6 +14,29 @@ async function signIn(page: Page, email: string, password: string) {
 }
 function dateIn(days: number) {
   return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
+async function findAcrossPages(page: Page, record: Locator) {
+  while (true) {
+    await expect(page.locator(".record-card").first()).toBeVisible();
+    await expect(page.locator(".loading")).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Listing review", exact: true }),
+    ).toHaveCount(0);
+    if (await record.isVisible()) return;
+    const pagination = page.getByRole("navigation", {
+      name: "Pagination",
+      exact: true,
+    });
+    const next = pagination.getByRole("button", { name: "Next", exact: true });
+    if (!(await next.isVisible()) || !(await next.isEnabled())) {
+      await expect(record).toBeVisible();
+      return;
+    }
+    const position = pagination.locator("span");
+    const previous = await position.innerText();
+    await next.click();
+    await expect(position).not.toHaveText(previous);
+  }
 }
 test("real landlord, agency and tenant workflows persist through reloads", async ({
   browser,
@@ -109,7 +132,7 @@ test("real landlord, agency and tenant workflows persist through reloads", async
   const review = agent
     .locator(".record-card")
     .filter({ has: agent.getByRole("heading", { name: title, exact: true }) });
-  await expect(review).toBeVisible();
+  await findAcrossPages(agent, review);
   await review.getByRole("button", { name: "Approve listing" }).click();
   await agent.getByRole("button", { name: "Confirm approval" }).click();
   await expect(agent.getByRole("dialog")).toHaveCount(0);
@@ -117,6 +140,7 @@ test("real landlord, agency and tenant workflows persist through reloads", async
   const approved = agent
     .locator(".record-card")
     .filter({ has: agent.getByRole("heading", { name: title, exact: true }) });
+  await findAcrossPages(agent, approved);
   await approved.getByRole("button", { name: "Publish listing" }).click();
   await agent.getByRole("button", { name: "Confirm publication" }).click();
   await expect(agent.getByRole("dialog")).toHaveCount(0);
@@ -197,9 +221,13 @@ test("real landlord, agency and tenant workflows persist through reloads", async
   await agent
     .getByRole("link", { name: "Visit scheduling", exact: true })
     .click();
+  await agent
+    .getByLabel("Visit status", { exact: true })
+    .selectOption("requested");
   const visit = agent
     .locator(".record-card")
     .filter({ has: agent.getByRole("heading", { name: title, exact: true }) });
+  await findAcrossPages(agent, visit);
   await visit.getByRole("button", { name: "Schedule visit" }).click();
   await agent
     .getByLabel("Visit time (your local time)")
@@ -251,6 +279,86 @@ test("real landlord, agency and tenant workflows persist through reloads", async
   await ownerContext.close();
   await agentContext.close();
   await tenantContext.close();
+});
+
+test("seeded demo accounts show persisted rental data and searchable homes", async ({
+  page,
+}) => {
+  test.skip(!process.env.E2E_DEMO_PASSWORD, "Requires the phase 6 demo seed");
+  const password = process.env.E2E_DEMO_PASSWORD!;
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  for (const role of ["tenant", "landlord", "admin"] as const) {
+    await page.context().clearCookies();
+    await page.goto("/");
+    await page.evaluate(() => localStorage.clear());
+    await signIn(
+      page,
+      `demo.${role === "admin" ? "agency" : role}@example.com`,
+      password,
+    );
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: /Welcome back/ }),
+    ).toBeVisible();
+    const routes =
+      role === "tenant"
+        ? ["applications", "contracts", "visits", "messages", "saved"]
+        : role === "landlord"
+          ? ["properties", "contracts", "occupancy"]
+          : [
+              "properties",
+              "listings",
+              "applications",
+              "contracts",
+              "visits",
+              "messages",
+              "occupancy",
+              "users",
+            ];
+    for (const route of routes) {
+      await page.goto(`/${role}/${route}`);
+      await expect(page.locator("main h1")).toBeVisible();
+      await expect(page.locator(".loading")).toHaveCount(0);
+      await expect(page.locator(".notice-error")).toHaveCount(0);
+      if (route === "messages")
+        await expect(page.locator(".conversation-item").first()).toBeVisible();
+      else await expect(page.locator(".empty")).toHaveCount(0);
+    }
+    if (role === "landlord") {
+      await page.goto("/landlord/properties");
+      await expect(
+        page.getByRole("heading", {
+          name: "Demo Bologna home 001",
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
+    if (role === "tenant") {
+      await page.goto("/tenant/contracts");
+      await expect(
+        page.locator(".badge").filter({ hasText: /^active$/ }),
+      ).toBeVisible();
+      await page.goto("/tenant/messages");
+      await page
+        .getByRole("button", { name: /Demo viewing arrangements 001/ })
+        .click();
+      await expect(
+        page.getByText("The agency can help. Which day suits you?"),
+      ).toBeVisible();
+    }
+  }
+  await page.goto("/listings?city=Milan&property_type=room&sort=price_asc");
+  await expect(page.locator(".loading")).toHaveCount(0);
+  await expect(page.locator(".notice-error")).toHaveCount(0);
+  const cards = page.locator(".listing-card");
+  await expect(cards.first()).toBeVisible();
+  await expect(cards).toHaveCount(12);
+  await expect(cards.first()).toContainText("Milan");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(cards.first()).toBeVisible();
+  expect(errors).toEqual([]);
 });
 test("public desktop and mobile pages are accessible and do not overflow", async ({
   page,

@@ -70,8 +70,8 @@ erDiagram
   must retry complete transactions on SQLSTATE 40001/40P01 (Phase 4).
 - Same-unit overlap and apartment/room overlap are rejected with SQLSTATE 23P01.
   Different rooms may overlap. All noncancelled records reserve their historical
-  interval, including completed and terminated contracts. Early termination will
-  need an effective-date design in Phase 4 before releasing unused future dates.
+  interval, including completed and terminated contracts. Phase 4's immutable
+  effective termination date releases the unused portion of an ended lease.
 - Listing availability windows are checked by the approval service in Phase 4,
   together with publication state and authenticated permissions. The database
   foundation prevents rental conflicts even for direct SQL writes.
@@ -87,8 +87,8 @@ and [function visibility](https://www.postgresql.org/docs/current/spi-visibility
 ## Status transitions
 
 Database checks reject unknown states and triggers reject illegal updates.
-Inserts may specify any recognized state for controlled imports; future public
-APIs must enforce initial states and agency permissions.
+Inserts may specify any recognized state for controlled imports; public
+APIs enforce initial states and agency permissions.
 
 - Listings: draft/rejected → submitted → approved/rejected;
   approved/unpublished → published → unpublished.
@@ -142,13 +142,22 @@ provisioning uses the separate development/bootstrap command.
    backend-connected forms, persistent auth, Vitest/RTL tests.
 6. Fake data/integration: Faker 100 landlords, 200 tenants, 300 properties across
    Bologna/Milan/Rome/Florence; safe demo accounts and valid rental histories;
-   Docker startup and primary user journeys.
+   Docker startup and primary user journeys. Implemented; see [Phase 6](phase-6.md).
 7. AI: only after core acceptance passes, integrate OpenAI API and Agents SDK;
    current backend data, tenant authorization, explicit mutation confirmations,
    backend-only keys, tool tests and logging.
 
 No real payments, external messaging, real personal records, or AI calls belong
 in this phase. Model packages for later phases are intentionally reserved.
+
+Phase 6 uses a pinned Faker version with an independently seeded Italian locale,
+stable UUIDs and one PostgreSQL transaction. A transaction advisory lock serializes
+seed commands. Controlled history imports keep constraints/triggers active; only
+the import may insert historical final states. Dates are relative to Europe/Rome
+today or an explicit initial anchor. Only three demo accounts share the local
+operator's password; all other accounts have independently generated credentials.
+The seed runs through an opt-in Compose profile or local CLI and never on startup.
+Separate disposable databases and Docker services support repeatable verification.
 
 ## Phase 2 authentication decisions
 

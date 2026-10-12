@@ -20,10 +20,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from app.models import User
 from app.security import hash_password
+from app.seed import seed_demo
 data=json.load(sys.stdin)
 engine=create_engine(os.environ['E2E_DATABASE_URL'])
 if not engine.url.database.endswith('_test'): sys.exit('A disposable _test database is required')
 with Session(engine) as s,s.begin():
+    if os.environ.get('E2E_SEED_DEMO') == '1':
+        password=os.environ.get('E2E_DEMO_PASSWORD', '')
+        if not password: sys.exit('Set E2E_DEMO_PASSWORD when E2E_SEED_DEMO=1')
+        seed_demo(s, password)
     s.add(User(email=data['email'],password_hash=hash_password(data['password']),full_name='Synthetic Browser Agent',role='admin'))
 engine.dispose()
 buffer=BytesIO(); Image.new('RGB',(16,16),'#dbe3b5').save(buffer,format='PNG')

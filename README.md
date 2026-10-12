@@ -1,6 +1,6 @@
 # AI Rental Agent
 
-Incremental rental management platform. **Phases 1–5: database, authentication, inventory, rental operations and frontend** are
+Incremental rental management platform. **Phases 1–6: database, authentication, inventory, rental operations, frontend and demo integration** are
 implemented. The backend exposes registration/login, revocable JWT authentication,
 profile management, properties/units, secure images, listing moderation/search,
 availability, transactional applications/contracts, visits, private agency messaging,
@@ -13,7 +13,8 @@ See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 2 implementation and verification](docs/phase-2.md), and
 [Phase 3 implementation and verification](docs/phase-3.md), and
 [Phase 4 implementation and verification](docs/phase-4.md), and
-[Phase 5 implementation and verification](docs/phase-5.md).
+[Phase 5 implementation and verification](docs/phase-5.md), and
+[Phase 6 demo data and integration verification](docs/phase-6.md).
 
 ## Local development with Docker
 
@@ -167,8 +168,51 @@ docker compose exec backend python -m app.admin --email synthetic.admin@example.
 ```
 
 Duplicate emails are rejected; this command never promotes an existing tenant or
-landlord. There are no shared demo passwords. Faker data and documented development
-demo accounts remain Phase 6 work. No real users or external messages are created.
+landlord. Optional demo accounts use a local operator-selected password; see below.
+No real users or external messages are created.
+
+## Demo data and accounts
+
+Phase 6 provides 100 landlords, 200 tenants, one agency administrator and 300
+synthetic properties, with 75 each in Bologna, Milan, Rome and Florence. Every
+property has an apartment and two rooms. The dataset includes 900 listings (540
+published), valid rental histories, future applications, visits, conversations,
+messages, saved homes and amenities. Photos remain empty until uploaded.
+
+Choose a 12–128 character `DEMO_PASSWORD` in your ignored `.env`. It is used only
+by the three accounts below; bulk accounts have independent random passwords.
+The local environment prepared during Phase 6 already has a generated password.
+
+```sh
+docker compose up --build -d --wait
+docker compose --profile demo run --build --rm seed
+```
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Agency | `demo.agency@example.com` | `DEMO_PASSWORD` from your local `.env` |
+| Landlord | `demo.landlord@example.com` | Same local value |
+| Tenant | `demo.tenant@example.com` | Same local value |
+
+Open http://localhost:5173/login. The landlord owns three properties; the tenant
+has rental history, an active contract, a future application, a visit, a saved
+home and an agency conversation. Public searches have homes in all four cities.
+
+Without Docker, after applying migrations:
+
+```sh
+backend/.venv/bin/python -m app.seed --demo
+```
+
+This reads `DEMO_PASSWORD` from the environment or root `.env`, or prompts twice
+if neither is set. `--non-interactive` requires a configured password. Optional
+`--as-of YYYY-MM-DD` anchors the first import; otherwise dates use Europe/Rome today.
+
+The import is transactional and serializes concurrent seed commands. Rerunning
+preserves existing records, edits, dates and passwords. An incomplete dataset or
+reserved email collision fails without replacing data. It runs only on explicit
+invocation. To start over, use a fresh development database; the seed command has
+no deletion/reset action. See the [Phase 6 report](docs/phase-6.md) for details.
 
 ## Inventory and listings API
 
@@ -270,21 +314,17 @@ and back up files with metadata. Missing files return 404 rather than exposing p
 
 ## Current scope and next phase
 
-Phases 1–5 are complete: inventory, moderation, uploads, search, availability,
+Phases 1–6 are complete: inventory, moderation, uploads, search, availability,
 rental operations, private messaging, reporting, agency account management and
-backend-connected public pages and role dashboards.
+backend-connected public pages and role dashboards, plus synthetic demo data and
+Docker integration verification.
 
 Password recovery and email verification are not implemented. No external email
-is sent. Demo accounts and the Faker dataset remain Phase 6 work. No real users,
+is sent. Demo accounts and the Faker dataset are available through the opt-in seed. No real users,
 real payments, outgoing messages or OpenAI calls were introduced.
 
-Phase 6 will add the bulk Faker dataset, documented demo accounts and full
-Docker/user-journey integration checks. AI starts only after the core platform is
-operational and tested.
-
-Docker configuration was validated, but full Compose startup could not be tested
-because the Docker daemon was stopped. PostgreSQL migration and database tests
-were executed on an isolated local PostgreSQL server; see the verification report.
+Phase 7 is next: AI integration. The core platform, Docker startup and primary
+user journeys have passed Phase 6 verification; see the phase report.
 
 ## Rental operations API
 
@@ -327,5 +367,25 @@ npm test
 
 For Chrome tests against a disposable backend/database, follow the
 [frontend README](frontend/README.md). Tests create synthetic verification records
-and random test administrator credentials; bulk Faker seeds and public demo
-credentials remain Phase 6.
+and random test administrator credentials. Phase 6 also verifies seeded demo
+accounts against a separate Docker backend and frontend.
+
+For the complete repeatable check, install the backend lock/editable package and
+frontend dependencies, ensure Docker and Google Chrome are available, then run:
+
+```sh
+backend/.venv/bin/python -m app.verify
+```
+
+This starts the development stack, creates/reuses disposable `rental_phase6_test`
+and `rental_browser_test` databases, applies migrations, runs backend tests,
+frontend build/tests/lint, and all four Chrome tests. Backend tests truncate only
+the disposable backend database. Browser data is retained for rerun checks; test
+credentials are stored in ignored `frontend/.env.e2e.local`. The development
+database is separate. Ports 8001 and 5174 belong to the verification services.
+Use `--skip-build` when the backend image is already current. Stop only the extra
+verification services afterward with:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.verify.yml stop verify-frontend verify-backend
+```
