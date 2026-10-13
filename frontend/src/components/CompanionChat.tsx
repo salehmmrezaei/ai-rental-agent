@@ -1,0 +1,402 @@
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowUpRight, MessageSquarePlus, Send, Sparkles } from "lucide-react";
+import { api } from "../api/client";
+import type {
+  AssistantAction,
+  AssistantStatus,
+  AssistantThread,
+  AssistantThreadDetail,
+} from "../api/assistant";
+import { useAuth } from "../auth/AuthProvider";
+import { useResource } from "../hooks/useResource";
+import { AssistantMessageView } from "./AssistantMessages";
+import { Button, Feedback, Loading } from "./ui";
+
+function restoreChat(userId: string) {
+  try {
+    const id = sessionStorage.getItem(`casa:blu-chat:${userId}`);
+    return id && /^[a-f0-9-]{36}$/i.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function TenantChat({
+  userId,
+  active,
+  onBusyChange,
+}: {
+  userId: string;
+  active: boolean;
+  onBusyChange: (busy: boolean) => void;
+}) {
+  const location = useLocation();
+  const [chatId, setChatId] = useState<string | null>(() =>
+    restoreChat(userId),
+  );
+  const status = useResource<AssistantStatus>("/assistant/status");
+  const chats = useResource<AssistantThread[]>("/assistant/threads");
+  const history = useResource<AssistantThreadDetail>(
+    chatId ? `/assistant/threads/${chatId}` : null,
+  );
+  const [reply, setReply] = useState<AssistantThreadDetail>();
+  const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState(false);
+  const [sending, setSending] = useState("");
+  const [error, setError] = useState("");
+  const controller = useRef<AbortController | null>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const messages = useRef<HTMLDivElement>(null);
+  const thread = reply || history.data;
+  const available = status.data?.available === true;
+  const listingId = /^\/listings\/([a-f0-9-]{36})$/i.exec(
+    location.pathname,
+  )?.[1];
+  const blocked =
+    !available ||
+    pending ||
+    (!!chatId && !thread && (history.loading || !!history.error));
+
+  useEffect(
+    () => () => {
+      controller.current?.abort();
+      onBusyChange(false);
+    },
+    [onBusyChange],
+  );
+  useEffect(() => {
+    try {
+      const key = `casa:blu-chat:${userId}`;
+      if (chatId) sessionStorage.setItem(key, chatId);
+      else sessionStorage.removeItem(key);
+    } catch {
+      /* Server conversations remain available without browser storage. */
+    }
+  }, [chatId, userId]);
+  useEffect(() => {
+    if (active && available && !pending) input.current?.focus();
+  }, [active, available]);
+  useEffect(() => {
+    if (active && messages.current)
+      messages.current.scrollTop = messages.current.scrollHeight;
+  }, [active, thread?.messages.length, pending]);
+
+  function startChat(id: string | null) {
+    if (pending) return;
+    setChatId(id);
+    setReply(undefined);
+    setDraft("");
+    setError("");
+  }
+
+  async function send() {
+    if (blocked || !draft.trim()) return;
+    const original = draft.trim();
+    const message = listingId
+      ? `${original}\n\nCurrent home listing ID: ${listingId}`
+      : original;
+    if (message.length > 2000) {
+      setError(
+        "Please shorten your message to leave room for this home's reference.",
+      );
+      return;
+    }
+    const request = new AbortController();
+    controller.current = request;
+    setPending(true);
+    onBusyChange(true);
+    setSending(original);
+    setError("");
+    try {
+      const result = await api<AssistantThreadDetail>("/assistant/chat", {
+        method: "POST",
+        signal: request.signal,
+        body: { message, thread_id: chatId },
+      });
+      if (request.signal.aborted) return;
+      setReply(result);
+      setChatId(result.id);
+      setDraft("");
+      chats.reload();
+    } catch (cause) {
+      if (!request.signal.aborted) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "I couldn’t send that. Please try again.",
+        );
+        history.reload();
+      }
+    } finally {
+      if (!request.signal.aborted) {
+        setPending(false);
+        onBusyChange(false);
+        setSending("");
+      }
+    }
+  }
+
+  async function resolve(action: AssistantAction, confirm: boolean) {
+    if (pending) return;
+    const request = new AbortController();
+    controller.current = request;
+    setPending(true);
+    onBusyChange(true);
+    setError("");
+    try {
+      const result = await api<AssistantAction>(
+        `/assistant/actions/${action.id}/${confirm ? "confirm" : "cancel"}`,
+        {
+          method: "POST",
+          signal: request.signal,
+          body: confirm ? { confirmed: true } : undefined,
+        },
+      );
+      if (request.signal.aborted) return;
+      setReply((current) => {
+        const base = current || history.data;
+        return base
+          ? {
+              ...base,
+              messages: base.messages.map((message) => ({
+                ...message,
+                actions: message.actions.map((item) =>
+                  item.id === result.id ? result : item,
+                ),
+              })),
+            }
+          : base;
+      });
+    } catch (cause) {
+      if (!request.signal.aborted) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "I couldn’t complete that action. Please try again.",
+        );
+        setReply(undefined);
+        history.reload();
+      }
+    } finally {
+      if (!request.signal.aborted) {
+        setPending(false);
+        onBusyChange(false);
+      }
+    }
+  }
+
+  return (
+    <div className="companion-chat">
+      <div className="companion-chat-toolbar">
+        <label className="sr-only" htmlFor={`blu-chats-${userId}`}>
+          Blu conversation
+        </label>
+        <select
+          id={`blu-chats-${userId}`}
+          value={chatId || ""}
+          disabled={pending}
+          onChange={(event) => startChat(event.target.value || null)}
+        >
+          <option value="">New conversation</option>
+          {chatId && !chats.data?.some((chat) => chat.id === chatId) && (
+            <option value={chatId}>
+              {thread?.title || "Current conversation"}
+            </option>
+          )}
+          {chats.data?.map((chat) => (
+            <option key={chat.id} value={chat.id}>
+              {chat.title}
+            </option>
+          ))}
+        </select>
+        <button
+          className="companion-new-chat"
+          aria-label="New Blu chat"
+          title="New chat"
+          disabled={pending}
+          onClick={() => startChat(null)}
+        >
+          <MessageSquarePlus size={17} />
+        </button>
+      </div>
+      <Feedback error={error || status.error || history.error} />
+      {status.error && (
+        <Button variant="secondary" onClick={status.reload}>
+          Retry connection
+        </Button>
+      )}
+      {history.error && (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setReply(undefined);
+            history.reload();
+          }}
+        >
+          Reload conversation
+        </Button>
+      )}
+      {status.data && !available && (
+        <p className="companion-chat-notice" role="status">
+          {status.data.message}
+        </p>
+      )}
+      <div
+        ref={messages}
+        className="companion-chat-messages"
+        role="log"
+        aria-label="Conversation with Blu"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
+        {status.loading || (history.loading && !thread) ? (
+          <Loading label="Getting ready…" />
+        ) : null}
+        {!thread && !pending && (
+          <div className="companion-chat-welcome">
+            <span aria-hidden="true">✦</span>
+            <h3>Hi, I’m Blu!</h3>
+            <p>
+              Your tiny helper for finding a home. Tell me what you need — I’m
+              all ears.
+            </p>
+            <div className="companion-chat-prompts">
+              {[
+                "Find rooms in Bologna under €600/month.",
+                "Check my applications.",
+                "Help me ask the agency about utilities.",
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  disabled={!available}
+                  onClick={() => {
+                    setDraft(prompt);
+                    input.current?.focus();
+                  }}
+                >
+                  {prompt}
+                  <ArrowUpRight size={13} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {thread?.messages.map((message) => (
+          <AssistantMessageView
+            key={message.id}
+            message={message}
+            busy={pending}
+            assistantName="Blu"
+            onAction={(action, confirm) => void resolve(action, confirm)}
+          />
+        ))}
+        {sending && (
+          <article className="assistant-message own">
+            <p className="assistant-speaker">You</p>
+            <p className="assistant-text">{sending}</p>
+          </article>
+        )}
+        {pending && (
+          <Loading
+            label={
+              sending
+                ? "Blu is checking your options…"
+                : "Completing your confirmed request…"
+            }
+          />
+        )}
+      </div>
+      <form
+        className="companion-chat-compose"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
+        }}
+      >
+        {listingId && (
+          <p className="companion-chat-context">
+            <Sparkles size={12} />
+            Blu can see which home you’re viewing.
+          </p>
+        )}
+        <label htmlFor={`blu-message-${userId}`}>Message Blu</label>
+        <div className="companion-chat-input">
+          <textarea
+            ref={input}
+            id={`blu-message-${userId}`}
+            rows={2}
+            maxLength={listingId ? 1900 : 2000}
+            value={draft}
+            placeholder="What can I do for you?"
+            disabled={blocked}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void send();
+              }
+            }}
+          />
+          <button
+            type="submit"
+            aria-label="Send request to Blu"
+            disabled={blocked || !draft.trim()}
+          >
+            <Send size={17} />
+          </button>
+        </div>
+        <p className="companion-chat-privacy">
+          Uses OpenAI. Review details before confirming an action.
+        </p>
+      </form>
+    </div>
+  );
+}
+
+export function CompanionChat({
+  active,
+  onBusyChange,
+}: {
+  active: boolean;
+  onBusyChange: (busy: boolean) => void;
+}) {
+  const { user, status, refresh, error } = useAuth();
+  const location = useLocation();
+  if (status === "loading") return <Loading label="Checking your account…" />;
+  if (status === "error")
+    return (
+      <div className="companion-chat-gate">
+        <Feedback error={error} />
+        <Button onClick={() => void refresh()}>Retry account check</Button>
+      </div>
+    );
+  if (user?.role === "tenant")
+    return (
+      <TenantChat
+        key={user.id}
+        userId={user.id}
+        active={active}
+        onBusyChange={onBusyChange}
+      />
+    );
+  return (
+    <div className="companion-chat-gate">
+      <Sparkles size={28} />
+      <h3>Your tiny rental helper</h3>
+      <p>
+        {user
+          ? "Blu’s rental assistant is available with a tenant account. You can still pet Blu and enjoy its activities."
+          : "Sign in as a tenant to find homes, ask about rentals, and give Blu your requests right here."}
+      </p>
+      {!user && (
+        <Link
+          className="btn btn-primary"
+          to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
+        >
+          Sign in to chat
+        </Link>
+      )}
+    </div>
+  );
+}
