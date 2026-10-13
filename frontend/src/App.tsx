@@ -23,6 +23,7 @@ import { ListingApprovalsPage } from "./pages/ListingApprovals";
 import { UsersPage } from "./pages/Users";
 import { AssistantPage } from "./pages/Assistant";
 import { Button, Empty } from "./components/ui";
+import { FloatingCompanion } from "./components/FloatingCompanion";
 export class ErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -148,6 +149,7 @@ export function App() {
           />
         </Route>
       </Routes>
+      <FloatingCompanion />
     </ErrorBoundary>
   );
 }
