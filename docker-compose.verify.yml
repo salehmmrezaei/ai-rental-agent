@@ -17,6 +17,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/rental_browser_test
       UPLOAD_DIR: /app/uploads
       AUTH_RATE_LIMIT: 100
+      ASSISTANT_ENABLED: "false"
     volumes:
       - verify_image_data:/app/uploads
     ports:

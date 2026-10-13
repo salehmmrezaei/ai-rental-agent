@@ -25,6 +25,8 @@ def api(engine, inventory, monkeypatch):
     monkeypatch.setenv('DATABASE_URL', 'postgresql+psycopg://unused@localhost/unused')
     monkeypatch.setenv('JWT_SECRET', KEY)
     monkeypatch.setenv('AUTH_RATE_LIMIT', '100')
+    monkeypatch.setenv('OPENAI_API_KEY', '')
+    monkeypatch.setenv('ASSISTANT_ENABLED', 'false')
     get_settings.cache_clear()
     with Session(engine) as s, s.begin():
         encoded = hash_password(PASSWORD)

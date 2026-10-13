@@ -21,6 +21,11 @@ VITE_API_BASE_URL is an optional public build-time API base; it defaults to
 `/api/v1`. An absolute URL requires the matching backend CORS origin. Keep
 backend secrets out of VITE variables.
 
+Phase 7 adds `/tenant/assistant`, recent chats, verified home references and
+explicit confirmation cards. It uses the backend's `/assistant` routes and requires
+a root backend `OPENAI_API_KEY` for live replies. The frontend never holds the key.
+See [Phase 7 setup and verification](../docs/phase-7.md).
+
 `npm run preview` serves a built bundle with the same proxy for local checks.
 Static deployments must forward `/api` to FastAPI and rewrite other frontend
 routes to index.html. Vite's development server is not a production host.
@@ -49,7 +54,7 @@ From the repository root, start a temporary backend using your disposable URL:
 ```sh
 export DATABASE_URL='postgresql+psycopg://YOUR_USER:YOUR_PASSWORD@127.0.0.1:5432/rental_test'
 backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
-backend/.venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8001
+ASSISTANT_ENABLED=false backend/.venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8001
 ```
 
 Set JWT_SECRET using the normal ignored backend configuration. In another terminal:
@@ -71,7 +76,9 @@ See [Phase 5 implementation](../docs/phase-5.md) for routes, decisions and verif
 
 Phase 6 provides populated demo accounts and verifies all three roles against
 Docker. From the repository root, `backend/.venv/bin/python -m app.verify` runs
-the complete suite with separate disposable databases and automatically manages
+the current Phase 7 suite with separate disposable databases and automatically manages
 the verification frontend on port 5174. See [Phase 6](../docs/phase-6.md) and the
 root README for demo credentials and setup. The normal development site remains
-http://localhost:5173.
+http://localhost:5173. Verification disables live AI requests and checks the assistant's
+setup state, desktop/mobile layout and accessibility. Backend tests exercise the
+actual Agents SDK loop with an offline scripted model.

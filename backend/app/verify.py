@@ -1,7 +1,8 @@
-"""Host-side Phase 6 verification: python -m app.verify.
+"""Host-side Phase 7 verification: python -m app.verify.
 
 Requires Docker, the local backend virtualenv, frontend npm dependencies and Chrome.
 Credentials stay in process environments; only disposable *_test data is truncated.
+Assistant tests use an offline model; browser verification disables live AI calls.
 """
 import argparse
 import os
@@ -15,7 +16,7 @@ import psycopg
 from psycopg import sql
 from sqlalchemy import URL
 
-BACKEND_DATABASE = "rental_phase6_test"
+BACKEND_DATABASE = "rental_phase7_test"
 BROWSER_DATABASE = "rental_browser_test"
 
 
@@ -59,7 +60,8 @@ def main() -> int:
             command.append("--build")
         run(command + ["frontend", "verify-frontend"])
         test_env = {"DATABASE_URL": database_url(BACKEND_DATABASE),
-                    "TEST_DATABASE_URL": database_url(BACKEND_DATABASE)}
+                    "TEST_DATABASE_URL": database_url(BACKEND_DATABASE),
+                    "OPENAI_API_KEY": "", "ASSISTANT_ENABLED": "false"}
         run([python.parent / "alembic", "-c", "backend/alembic.ini", "upgrade", "head"], extra=test_env)
         run([python.parent / "pytest", "backend/tests", "-q"], extra=test_env)
         for command in (["npm", "run", "build"], ["npm", "test"], ["npm", "run", "lint"]):
@@ -81,9 +83,9 @@ def main() -> int:
             "E2E_SEED_DEMO": "1", "E2E_DEMO_PASSWORD": password})
     except (subprocess.CalledProcessError, psycopg.Error, ValueError) as exc:
         # Database errors can include connection details: keep credentials out of output.
-        print("Phase 6 verification failed; inspect the failed check above and local configuration", file=sys.stderr)
+        print("Phase 7 verification failed; inspect the failed check above and local configuration", file=sys.stderr)
         return exc.returncode if isinstance(exc, subprocess.CalledProcessError) else 1
-    print("Phase 6 verification passed. Development: http://localhost:5173")
+    print("Phase 7 verification passed (offline agent tests; no live OpenAI requests). Development: http://localhost:5173")
     return 0
 
 

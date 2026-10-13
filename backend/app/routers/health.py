@@ -16,7 +16,7 @@ def liveness():
 def readiness(session: Session = Depends(get_session)):
     try:
         revision = session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        if revision != "0004_operations":
+        if revision != "0005_assistant":
             raise HTTPException(503, "Database migration required")
     except SQLAlchemyError:
         raise HTTPException(503, "Database unavailable or not migrated") from None

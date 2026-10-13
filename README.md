@@ -1,12 +1,13 @@
 # AI Rental Agent
 
-Incremental rental management platform. **Phases 1–6: database, authentication, inventory, rental operations, frontend and demo integration** are
+Incremental rental management platform. **Phases 1–7: database, authentication, inventory, rental operations, frontend, demo integration and AI assistant** are
 implemented. The backend exposes registration/login, revocable JWT authentication,
 profile management, properties/units, secure images, listing moderation/search,
 availability, transactional applications/contracts, visits, private agency messaging,
 saved listings, occupancy reports, dashboard statistics, admin account management,
 health checks and OpenAPI documentation. The React/TypeScript/Tailwind frontend
-now provides public search and tenant, landlord and agency dashboards.
+now provides public search and tenant, landlord and agency dashboards. Phase 7 adds a
+tenant AI rental assistant with live backend tools and explicit action confirmation.
 
 See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 1 implementation and verification](docs/phase-1.md), and
@@ -14,7 +15,8 @@ See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 3 implementation and verification](docs/phase-3.md), and
 [Phase 4 implementation and verification](docs/phase-4.md), and
 [Phase 5 implementation and verification](docs/phase-5.md), and
-[Phase 6 demo data and integration verification](docs/phase-6.md).
+[Phase 6 demo data and integration verification](docs/phase-6.md), and
+[Phase 7 AI assistant and verification](docs/phase-7.md).
 
 ## Local development with Docker
 
@@ -34,7 +36,7 @@ Use a URL-safe password or percent-encode it in database URLs. CORS_ORIGINS is a
 JSON array of exact frontend origins. JWT_SECRET is required for backend startup.
 Generate a local value with `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`
 and save it only in ignored .env. The existing local .env was updated with a generated
-secret during Phase 2. OpenAI is not integrated yet.
+secret during Phase 2. OpenAI configuration is optional; see the AI assistant setup below.
 Do not commit .env. PostgreSQL data and uploaded images persist in named volumes. Uploaded image
 metadata lives in PostgreSQL; files live in the backend image_data volume. Back up
 both together. Removing containers without deleting volumes preserves pictures.
@@ -314,19 +316,56 @@ removing files. A process crash or storage cleanup failure can leave an unrefere
 file; database authorization prevents serving it. Deployment should reconcile storage
 and back up files with metadata. Missing files return 404 rather than exposing paths.
 
-## Current scope and next phase
+## AI assistant (Phase 7)
 
-Phases 1–6 are complete: inventory, moderation, uploads, search, availability,
+Sign in as a tenant and open **AI assistant** in the sidebar, or visit
+http://localhost:5173/tenant/assistant. The assistant searches current published
+homes, checks complete rental dates, reads your own rental status and agency
+conversations, and prepares requested tasks. It can propose saving homes, applying,
+requesting/cancelling visits, withdrawing applications and contacting the agency.
+Review the exact dates, message and quoted rent in the card, then click **Confirm
+action**. A chat reply such as “yes” does not execute an action. Proposals expire
+after ten minutes; confirmation rechecks access, publication, availability and rent.
+
+For live replies, add these backend settings to the ignored root `.env`:
+
+```dotenv
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-5.4-mini
+ASSISTANT_ENABLED=true
+```
+
+Then reload the backend environment:
+
+```sh
+docker compose up -d --force-recreate backend
+```
+
+Keep the key out of frontend/VITE settings and source control. For startup after a
+code update use `docker compose up --build -d --wait`, which applies migrations.
+Without a key, the app works normally and the assistant explains that it needs
+configuration. `ASSISTANT_ENABLED=false` disables live chat. OpenAI requests use the
+Agents SDK and Responses API; only the necessary tenant data and chat are sent.
+Local chat history is persisted in PostgreSQL. Provider response storage and SDK
+tracing are disabled. Live requests use your OpenAI API account.
+
+See [Phase 7](docs/phase-7.md) for routes, tools, limits, privacy and verification.
+
+## Current scope
+
+Phases 1–7 are implemented: inventory, moderation, uploads, search, availability,
 rental operations, private messaging, reporting, agency account management and
 backend-connected public pages and role dashboards, plus synthetic demo data and
-Docker integration verification.
+Docker integration verification and the tenant AI assistant.
 
 Password recovery and email verification are not implemented. No external email
 is sent. Demo accounts and the Faker dataset are available through the opt-in seed. No real users,
-real payments, outgoing messages or OpenAI calls were introduced.
+real payments or outgoing email are created. Agency messages remain internal to
+the platform. The optional tenant assistant calls OpenAI when configured.
 
-Phase 7 is next: AI integration. The core platform, Docker startup and primary
-user journeys have passed Phase 6 verification; see the phase report.
+The assistant's tools and confirmation workflows are verified with an offline model.
+Live OpenAI search and action preparation also passed after local key configuration;
+see the Phase 7 report.
 
 ## Rental operations API
 
@@ -346,7 +385,8 @@ collections support `page` and `page_size` (maximum 100). See the
 
 Apply `backend/.venv/bin/alembic -c backend/alembic.ini upgrade head` from the
 project root before starting this version. Migration
-`0004_operations` installs PostgreSQL `btree_gist` for visit exclusions. Rental
+`0004_operations` installs PostgreSQL `btree_gist` for visit exclusions;
+`0005_assistant` adds AI chat history and pending actions. Rental
 dates are half-open: end dates can start another rental. Visits require timezone
 offsets and use UTC; business occupancy dates use Europe/Rome.
 
@@ -379,9 +419,9 @@ frontend dependencies, ensure Docker and Google Chrome are available, then run:
 backend/.venv/bin/python -m app.verify
 ```
 
-This starts the development stack, creates/reuses disposable `rental_phase6_test`
+This starts the development stack, creates/reuses disposable `rental_phase7_test`
 and `rental_browser_test` databases, applies migrations, runs backend tests,
-frontend build/tests/lint, and all five Chrome tests. Backend tests truncate only
+frontend build/tests/lint, and all six Chrome tests. Backend tests truncate only
 the disposable backend database. Browser data is retained for rerun checks; test
 credentials are stored in ignored `frontend/.env.e2e.local`. The development
 database is separate. Ports 8001 and 5174 belong to the verification services.
