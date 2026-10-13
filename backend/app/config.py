@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     max_image_pixels: int = Field(default=20_000_000, ge=1, le=40_000_000)
     max_property_images: int = Field(default=30, ge=1, le=100)
     auth_rate_limit: int = Field(default=20, ge=1, le=1000)
+    openai_api_key: SecretStr | None = None
+    openai_model: str = Field(default="gpt-5.4-mini", min_length=1, max_length=100)
+    assistant_enabled: bool = True
+    assistant_timeout_seconds: int = Field(default=60, ge=5, le=120)
+    assistant_max_turns: int = Field(default=6, ge=2, le=10)
+    assistant_rate_limit: int = Field(default=10, ge=1, le=100)
+
+    def assistant_available(self) -> bool:
+        key = self.openai_api_key.get_secret_value().strip() if self.openai_api_key else ""
+        return self.assistant_enabled and bool(key) and not key.startswith("replace-")
 
     def signing_key(self) -> str:
         value = self.jwt_secret.get_secret_value() if self.jwt_secret else ""

@@ -21,6 +21,7 @@ import { PropertyManagePage } from "./pages/PropertyManage";
 import { OccupancyPage } from "./pages/Occupancy";
 import { ListingApprovalsPage } from "./pages/ListingApprovals";
 import { UsersPage } from "./pages/Users";
+import { AssistantPage } from "./pages/Assistant";
 import { Button, Empty } from "./components/ui";
 export class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -83,6 +84,7 @@ export function App() {
         <Route element={<AuthGate roles={["tenant"]} />}>
           <Route path="tenant" element={<DashboardLayout />}>
             <Route index element={<OverviewPage />} />
+            <Route path="assistant" element={<AssistantPage />} />
             <Route path="saved" element={<SavedPage />} />
             <Route path="applications" element={<ApplicationsPage />} />
             <Route path="contracts" element={<ContractsPage />} />

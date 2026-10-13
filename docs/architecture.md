@@ -32,6 +32,9 @@ occupancy are derived from dated contracts, never a mutable occupied flag.
 | amenities | Reusable amenity vocabulary |
 | property_amenities | Property/amenity many-to-many association |
 | saved_listings | Unique tenant/listing saved item |
+| assistant_threads | Tenant-owned AI chat with bounded server-side model history |
+| assistant_messages | User/assistant text and database-verified listing references |
+| assistant_actions | Tenant-scoped proposed tasks, expiry and atomic confirmation results |
 
 ```mermaid
 erDiagram
@@ -123,6 +126,7 @@ Errors use the shared envelope implemented in Phase 2.
 | 4 | GET/PATCH /admin/users/{id}; GET /admin/users | Agency only |
 | 4 | GET /dashboard/statistics; GET/POST/DELETE /saved-listings | Role-scoped statistics; tenant saves |
 | 7 | POST /assistant/chat; POST /assistant/actions/{id}/confirm | Tenant-scoped tools and explicit action confirmation |
+| 7 | GET /assistant/status, /assistant/threads, /assistant/threads/{id}; POST /assistant/actions/{id}/cancel | Authenticated tenant's own chats and actions |
 
 Tenant registration cannot choose admin privileges. Owner queries must always
 scope by authenticated landlord ID. Contract approval locks the property and application,
@@ -145,10 +149,11 @@ provisioning uses the separate development/bootstrap command.
    Docker startup and primary user journeys. Implemented; see [Phase 6](phase-6.md).
 7. AI: only after core acceptance passes, integrate OpenAI API and Agents SDK;
    current backend data, tenant authorization, explicit mutation confirmations,
-   backend-only keys, tool tests and logging.
+   backend-only keys, tool tests and logging. Implemented; see [Phase 7](phase-7.md).
 
-No real payments, external messaging, real personal records, or AI calls belong
-in this phase. Model packages for later phases are intentionally reserved.
+No real payments or external email are implemented. Phase 7 OpenAI requests are
+optional and use backend-only credentials; automated verification uses an offline
+model. Tenant registration remains separate from operator API configuration.
 
 Phase 6 uses a pinned Faker version with an independently seeded Italian locale,
 stable UUIDs and one PostgreSQL transaction. A transaction advisory lock serializes

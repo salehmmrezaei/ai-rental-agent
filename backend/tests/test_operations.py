@@ -432,6 +432,8 @@ def test_downgrade_refuses_contracts_depending_on_termination(engine,inventory):
     from pathlib import Path
     import subprocess
     import sys
+    with Session(engine) as s:
+        original_revision = s.scalar(text('SELECT version_num FROM alembic_version'))
     start=today()-timedelta(days=10); end=today()+timedelta(days=30); termination=today()
     with Session(engine) as s,s.begin():
         rid=application(s,inventory,start=start,end=end); cid=contract(s,inventory,rid,start=start,end=end,status='active')
@@ -442,6 +444,6 @@ def test_downgrade_refuses_contracts_depending_on_termination(engine,inventory):
         env=os.environ|{'DATABASE_URL':engine.url.render_as_string(hide_password=False)},capture_output=True,text=True,timeout=30)
     assert result.returncode!=0 and 'Cannot downgrade leases that depend on effective termination' in result.stderr
     with Session(engine) as s:
-        assert s.scalar(text('SELECT version_num FROM alembic_version'))=='0004_operations'
+        assert s.scalar(text('SELECT version_num FROM alembic_version')) == original_revision
         assert s.get(RentalContract,cid).terminated_on==termination
         assert s.scalar(select(func.count()).select_from(RentalContract))==2

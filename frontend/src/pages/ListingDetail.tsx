@@ -88,6 +88,9 @@ export function ListingDetailPage() {
                     : "Space to make your own"}
                 </p>
                 <h1>{listing.title}</h1>
+                {user?.role === "tenant" && (
+                  <Link className="text-link" to={`/tenant/assistant?listing=${listing.id}`}>Ask the AI assistant<ArrowRight size={15} /></Link>
+                )}
                 <p className="location">
                   <MapPin size={17} />
                   {listing.address}, {listing.city} {listing.postal_code}

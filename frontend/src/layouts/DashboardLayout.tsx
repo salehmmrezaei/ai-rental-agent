@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   Menu,
   X,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
@@ -27,6 +28,7 @@ type NavItem = [string, string, LucideIcon];
 const menus: Record<Role, NavItem[]> = {
   tenant: [
     ["", "Overview", LayoutDashboard],
+    ["assistant", "AI assistant", Sparkles],
     ["saved", "Saved homes", Heart],
     ["applications", "Applications", FileText],
     ["contracts", "My rentals", KeyRound],

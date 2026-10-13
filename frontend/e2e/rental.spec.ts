@@ -2,6 +2,47 @@ import { test, expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
+
+test("tenant assistant explains setup and remains accessible on desktop and mobile", async ({
+  page,
+}) => {
+  const suffix = randomUUID().slice(0, 8);
+  await page.goto("/register");
+  await page.getByLabel("Full name").fill("Synthetic Assistant Tenant");
+  await page
+    .getByLabel("Email address")
+    .fill(`synthetic.assistant.${suffix}@example.com`);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill(randomUUID() + randomUUID());
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/tenant$/);
+  await page.getByRole("link", { name: "AI assistant", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "AI rental assistant" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("The AI assistant is not configured yet.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Message the assistant")).toBeDisabled();
+  await expect(
+    page.getByRole("link", { name: "Browse all homes" }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "AI rental assistant" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Message the assistant")).toBeDisabled();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 async function signIn(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Email address", { exact: true }).fill(email);
