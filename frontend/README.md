@@ -25,6 +25,9 @@ Phase 7 adds `/tenant/assistant`, recent chats, verified home references and
 explicit confirmation cards. It uses the backend's `/assistant` routes and requires
 a root backend `OPENAI_API_KEY` for live replies. The frontend never holds the key.
 See [Phase 7 setup and verification](../docs/phase-7.md).
+Agency admins also have `/admin/assistant` and Blu chat for property/listing
+creation and editing, reviews, applications, visits, messages and reports. See
+[agency assistant](../docs/agency-assistant.md).
 
 `npm run preview` serves a built bundle with the same proxy for local checks.
 Static deployments must forward `/api` to FastAPI and rewrite other frontend

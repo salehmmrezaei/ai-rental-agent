@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 def owned_thread(session, user, thread_id, lock=False):
-    query = select(AssistantThread).where(AssistantThread.id == thread_id, AssistantThread.tenant_id == user.id)
+    query = select(AssistantThread).where(AssistantThread.id == thread_id, AssistantThread.user_id == user.id,
+                                          AssistantThread.user_role == user.role)
     if lock:
         query = query.with_for_update().execution_options(populate_existing=True)
     thread = session.scalar(query)
@@ -32,14 +33,15 @@ def owned_thread(session, user, thread_id, lock=False):
 
 def threads(session, user):
     return [ThreadRead.model_validate(t) for t in session.scalars(select(AssistantThread)
-        .where(AssistantThread.tenant_id == user.id).order_by(AssistantThread.updated_at.desc(), AssistantThread.id).limit(20))]
+        .where(AssistantThread.user_id == user.id, AssistantThread.user_role == user.role)
+        .order_by(AssistantThread.updated_at.desc(), AssistantThread.id).limit(20))]
 
 
 def thread_detail(session, user, thread_id):
     thread = owned_thread(session, user, thread_id)
     actions = defaultdict(list)
     for action in session.scalars(select(AssistantAction).where(AssistantAction.thread_id == thread.id,
-            AssistantAction.tenant_id == user.id).order_by(AssistantAction.created_at, AssistantAction.id)):
+            AssistantAction.user_id == user.id).order_by(AssistantAction.created_at, AssistantAction.id)):
         actions[action.message_id].append(ActionRead.model_validate(action))
     messages = [MessageRead(id=m.id, role=m.role, content=m.content, listings=m.listings,
                 actions=actions[m.id], created_at=m.created_at) for m in session.scalars(select(AssistantMessage)
@@ -62,7 +64,7 @@ def chat(db, user, data):
     settings = get_settings()
     if not settings.assistant_available():
         raise ApiError(503, "assistant_unconfigured", "The AI assistant is not configured yet. Your operator can enable it with an OpenAI API key.")
-    actor, bind = tx.Actor.from_user(user), db.get_bind()
+    actor, bind, role = tx.Actor.from_user(user), db.get_bind(), user.role
     history, version, states = [], 0, []
     if data.thread_id:
         thread = owned_thread(db, user, data.thread_id)
@@ -70,11 +72,14 @@ def chat(db, user, data):
         if version >= 40:
             raise ApiError(422, "chat_limit", "This conversation is full. Start a new chat.")
         states = [{"id": str(a.id), "kind": a.kind, "status": a.status,
-                   "expired": a.expires_at <= now()} for a in db.scalars(select(AssistantAction)
-                  .where(AssistantAction.thread_id == thread.id, AssistantAction.tenant_id == user.id))]
+                   "expired": a.expires_at <= now(),
+                   "result_identifiers": {key: value for key, value in (a.result or {}).items()
+                       if key in {"id", "property_id", "rental_unit_id", "rental_request_id"}}}
+                  for a in db.scalars(select(AssistantAction)
+                  .where(AssistantAction.thread_id == thread.id, AssistantAction.user_id == user.id))]
     # Release the authentication/read transaction while awaiting the external model.
     db.rollback()
-    context = ToolContext(bind, actor)
+    context = ToolContext(bind, actor, role=role)
     history = trim_history(history + [{"role": "user", "content": data.message}])
     started = time.monotonic()
     try:
@@ -97,7 +102,7 @@ def chat(db, user, data):
             if thread.version != version:
                 raise ApiError(409, "chat_changed", "This chat changed in another request. Reload and send your message again.")
         else:
-            thread = AssistantThread(tenant_id=active_user.id, title=data.message[:100])
+            thread = AssistantThread(user_id=active_user.id, user_role=active_user.role, title=data.message[:100])
             session.add(thread)
             session.flush()
         thread.version += 1
@@ -112,31 +117,31 @@ def chat(db, user, data):
         session.add(message)
         session.flush()
         for proposal in context.proposals:
-            session.add(AssistantAction(id=proposal.id, thread_id=thread.id, tenant_id=active_user.id,
+            session.add(AssistantAction(id=proposal.id, thread_id=thread.id, user_id=active_user.id,
                 message_id=message.id, kind=proposal.kind, summary=proposal.summary, payload=proposal.payload,
                 expires_at=now()+timedelta(minutes=10)))
         session.flush()
         return thread_detail(session, active_user, thread.id)
 
-    response = tx.run(bind, actor, {"tenant"}, persist)
+    response = tx.run(bind, actor, {context.role}, persist)
     logger.info("assistant_run outcome=ok tools=%d proposals=%d elapsed_ms=%d", context.calls,
                 len(context.proposals), int((time.monotonic()-started)*1000))
     return response
 
 
 def resolve_action(db, user, action_id: UUID, confirm: bool):
-    bind, actor = db.get_bind(), tx.Actor.from_user(user)
+    bind, actor, role = db.get_bind(), tx.Actor.from_user(user), user.role
     db.rollback()
 
     def operation(session, active_user):
         # Lock order is thread then action for all resolutions, serializing this chat's changes.
         thread_id = session.scalar(select(AssistantAction.thread_id).where(AssistantAction.id == action_id,
-                                    AssistantAction.tenant_id == active_user.id))
+                                    AssistantAction.user_id == active_user.id))
         if thread_id is None:
             raise ApiError(404, "not_found", "Assistant action not found")
         thread = owned_thread(session, active_user, thread_id, lock=True)
         action = session.scalar(select(AssistantAction).where(AssistantAction.id == action_id,
-            AssistantAction.tenant_id == active_user.id).with_for_update().execution_options(populate_existing=True))
+            AssistantAction.user_id == active_user.id).with_for_update().execution_options(populate_existing=True))
         if action.status == "confirmed" and confirm:
             return ActionRead.model_validate(action)  # Persistent idempotency, including concurrent retries.
         if action.status == "cancelled" and not confirm:
@@ -155,6 +160,6 @@ def resolve_action(db, user, action_id: UUID, confirm: bool):
         session.flush()
         return ActionRead.model_validate(action)
 
-    result = tx.run(bind, actor, {"tenant"}, operation)
+    result = tx.run(bind, actor, {role} & {"tenant", "admin"}, operation)
     logger.info("assistant_action kind=%s outcome=%s", result.kind, result.status)
     return result

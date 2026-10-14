@@ -22,12 +22,14 @@ function restoreChat(userId: string) {
   }
 }
 
-function TenantChat({
+function UserChat({
   userId,
+  agency,
   active,
   onBusyChange,
 }: {
   userId: string;
+  agency: boolean;
   active: boolean;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -258,15 +260,23 @@ function TenantChat({
             <span aria-hidden="true">✦</span>
             <h3>Hi, I’m Blu!</h3>
             <p>
-              Your tiny helper for finding a home. Tell me what you need — I’m
-              all ears.
+              {agency
+                ? "Your agency helper. Ask me to manage properties, listings, applications, visits, messages, or reports."
+                : "Your tiny helper for finding a home. Tell me what you need — I’m all ears."}
             </p>
             <div className="companion-chat-prompts">
-              {[
-                "Find rooms in Bologna under €600/month.",
-                "Check my applications.",
-                "Help me ask the agency about utilities.",
-              ].map((prompt) => (
+              {(agency
+                ? [
+                    "Show listings waiting for approval.",
+                    "Help me create a property and its listing.",
+                    "Show requested visits.",
+                  ]
+                : [
+                    "Find rooms in Bologna under €600/month.",
+                    "Check my applications.",
+                    "Help me ask the agency about utilities.",
+                  ]
+              ).map((prompt) => (
                 <button
                   key={prompt}
                   disabled={!available}
@@ -371,11 +381,12 @@ export function CompanionChat({
         <Button onClick={() => void refresh()}>Retry account check</Button>
       </div>
     );
-  if (user?.role === "tenant")
+  if (user?.role === "tenant" || user?.role === "admin")
     return (
-      <TenantChat
-        key={user.id}
+      <UserChat
+        key={`${user.id}:${user.role}`}
         userId={user.id}
+        agency={user.role === "admin"}
         active={active}
         onBusyChange={onBusyChange}
       />
@@ -386,8 +397,8 @@ export function CompanionChat({
       <h3>Your tiny rental helper</h3>
       <p>
         {user
-          ? "Blu’s rental assistant is available with a tenant account. You can still pet Blu and enjoy its activities."
-          : "Sign in as a tenant to find homes, ask about rentals, and give Blu your requests right here."}
+          ? "Blu’s rental assistant is available with a tenant account or agency admin account. You can still pet Blu and enjoy its activities."
+          : "Sign in as a tenant or agency admin to give Blu your requests right here."}
       </p>
       {!user && (
         <Link

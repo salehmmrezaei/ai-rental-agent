@@ -45,6 +45,7 @@ const menus: Record<Role, NavItem[]> = {
   ],
   admin: [
     ["", "Overview", LayoutDashboard],
+    ["assistant", "AI assistant", Sparkles],
     ["users", "Users", UsersRound],
     ["properties", "Properties", Building2],
     ["listings", "Listing approvals", ClipboardCheck],

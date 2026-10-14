@@ -4,7 +4,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.schemas.inventory import Input, Text
 
-ActionKind = Literal['save_listing', 'apply', 'request_visit', 'contact_agency', 'send_message', 'withdraw_application', 'cancel_visit']
+ActionKind = Literal['save_listing', 'apply', 'request_visit', 'contact_agency', 'send_message',
+    'withdraw_application', 'cancel_visit', 'create_property', 'update_property', 'create_unit',
+    'update_unit', 'create_listing', 'update_listing', 'change_listing_status', 'review_application',
+    'approve_application', 'reject_application', 'update_visit', 'send_tenant_message']
 
 
 class ChatInput(Input):

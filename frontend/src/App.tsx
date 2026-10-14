@@ -112,6 +112,7 @@ export function App() {
         <Route element={<AuthGate roles={["admin"]} />}>
           <Route path="admin" element={<DashboardLayout />}>
             <Route index element={<OverviewPage />} />
+            <Route path="assistant" element={<AssistantPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="properties" element={<PropertiesPage />} />
             <Route path="properties/new" element={<PropertyEditorPage />} />

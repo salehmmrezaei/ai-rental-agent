@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { json, mockApi, renderApp, tenant, landlord, admin } from "./helpers";
 import type { AssistantThreadDetail, AssistantAction } from "../api/assistant";
@@ -227,9 +227,81 @@ for (const user of [landlord, admin]) {
     const { calls } = mockApi(user);
     renderApp("/tenant/assistant");
     await screen.findByRole("heading", { level: 1 });
-    expect(
-      screen.queryByRole("link", { name: "AI assistant" }),
-    ).not.toBeInTheDocument();
+    if (user.role === "admin")
+      expect(
+        screen.getByRole("link", { name: "AI assistant" }),
+      ).toHaveAttribute("href", "/admin/assistant");
+    else
+      expect(
+        screen.queryByRole("link", { name: "AI assistant" }),
+      ).not.toBeInTheDocument();
     expect(calls.some((c) => c.path.startsWith("/assistant"))).toBe(false);
   });
 }
+
+it("handles admin requests in the agency workspace and reviews exact property changes", async () => {
+  const agencyAction: AssistantAction = {
+    ...action,
+    kind: "update_unit",
+    summary: "Update Bologna home · Room A.",
+    payload: {
+      unit_id: "unit-id",
+      monthly_rent: "725.00",
+      deposit: "0",
+      amenities: [],
+      area_sqm: null,
+    },
+  };
+  let current: AssistantThreadDetail | undefined;
+  const { calls } = mockApi(admin, (path, method) => {
+    if (path === "/assistant/status") return json({ available: true });
+    if (path === "/assistant/threads") return json(current ? [current] : []);
+    if (path === "/assistant/chat" && method === "POST") {
+      current = thread([agencyAction]);
+      current.title = "Set Room A rent to 725 euros";
+      current.messages[1].listings = [];
+      return json(current);
+    }
+    if (path === "/assistant/threads/chat-id") return json(current);
+    if (path === "/assistant/actions/action-id/confirm")
+      return json({
+        ...agencyAction,
+        status: "confirmed",
+        result: { id: "unit-id" },
+      });
+  });
+  renderApp("/admin/assistant");
+  await screen.findByRole("heading", { name: "AI agency assistant" });
+  const user = userEvent.setup();
+  await waitFor(() =>
+    expect(screen.getByLabelText("Message the assistant")).toBeEnabled(),
+  );
+  await user.type(
+    screen.getByLabelText("Message the assistant"),
+    "Set Room A rent to 725 euros",
+  );
+  await user.click(screen.getByRole("button", { name: "Send message" }));
+  await screen.findByText(agencyAction.summary);
+  expect(screen.getByRole("link", { name: "AI assistant" })).toHaveAttribute(
+    "href",
+    "/admin/assistant",
+  );
+  expect(
+    screen.getByRole("button", { name: "Set Room A rent to 725 euros" }),
+  ).toHaveAttribute("aria-current", "page");
+  expect(screen.getByText("€725.00 / month")).toBeInTheDocument();
+  expect(screen.getByText("€0.00")).toBeInTheDocument();
+  expect(screen.getByText("None")).toBeInTheDocument();
+  expect(screen.getByText("Not set")).toBeInTheDocument();
+  expect(calls.some((c) => c.path.endsWith("/confirm"))).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Confirm action" }));
+  await screen.findByText("Action completed");
+  expect(
+    within(
+      screen.getByRole("region", { name: "Review proposed action" }),
+    ).getByRole("link", { name: "View properties" }),
+  ).toHaveAttribute("href", "/admin/properties");
+  expect(calls.find((c) => c.path.endsWith("/confirm"))?.body).toEqual({
+    confirmed: true,
+  });
+});

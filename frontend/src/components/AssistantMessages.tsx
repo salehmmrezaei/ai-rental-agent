@@ -12,6 +12,18 @@ const actionDestinations: Record<string, [string, string]> = {
   cancel_visit: ["/tenant/visits", "View visits"],
   contact_agency: ["/tenant/messages", "View agency messages"],
   send_message: ["/tenant/messages", "View agency messages"],
+  create_property: ["/admin/properties", "View properties"],
+  update_property: ["/admin/properties", "View properties"],
+  create_unit: ["/admin/properties", "View properties"],
+  update_unit: ["/admin/properties", "View properties"],
+  create_listing: ["/admin/listings", "View listings"],
+  update_listing: ["/admin/listings", "View listings"],
+  change_listing_status: ["/admin/listings", "View listings"],
+  review_application: ["/admin/applications", "View applications"],
+  approve_application: ["/admin/contracts", "View contracts"],
+  reject_application: ["/admin/applications", "View applications"],
+  update_visit: ["/admin/visits", "View visits"],
+  send_tenant_message: ["/admin/messages", "View messages"],
 };
 const fieldLabels: Record<string, string> = {
   start_date: "Move-in",
@@ -22,6 +34,25 @@ const fieldLabels: Record<string, string> = {
   initial_message: "Message",
   body: "Message",
   quoted_monthly_rent: "Quoted monthly rent",
+  title: "Title",
+  description: "Description",
+  city: "City",
+  address: "Address",
+  postal_code: "Postal code",
+  amenities: "Amenities",
+  kind: "Unit type",
+  name: "Unit name",
+  monthly_rent: "Monthly rent",
+  deposit: "Deposit",
+  bedrooms: "Bedrooms",
+  area_sqm: "Area (m²)",
+  available_from: "Available from",
+  available_until: "Available until",
+  status: "New status",
+  review_note: "Review note",
+  scheduled_at: "Scheduled visit time",
+  duration_minutes: "Duration (minutes)",
+  agency_note: "Agency note",
 };
 
 export function AssistantActionCard({
@@ -52,18 +83,30 @@ export function AssistantActionCard({
       <h3>{action.summary}</h3>
       <dl>
         {Object.entries(action.payload)
-          .filter(([key, value]) => fieldLabels[key] && value)
+          .filter(([key]) => fieldLabels[key])
           .map(([key, value]) => (
             <div key={key}>
               <dt>{fieldLabels[key]}</dt>
               <dd>
-                {key.endsWith("_date")
-                  ? day(value)
-                  : key === "requested_at"
-                    ? `${time(value)} (Europe/Rome)`
-                    : key === "quoted_monthly_rent" && value
-                      ? `${money(value)} / month`
-                      : value}
+                {value === null
+                  ? key === "available_until"
+                    ? "No end date"
+                    : "Not set"
+                  : Array.isArray(value)
+                    ? value.length
+                      ? value.join(", ")
+                      : "None"
+                    : key.endsWith("_date") ||
+                        key === "available_from" ||
+                        key === "available_until"
+                      ? day(String(value))
+                      : key === "requested_at" || key === "scheduled_at"
+                        ? `${time(String(value))} (Europe/Rome)`
+                        : key === "quoted_monthly_rent" ||
+                            key === "monthly_rent" ||
+                            key === "deposit"
+                          ? `${money(String(value))}${key === "deposit" ? "" : " / month"}`
+                          : String(value)}
               </dd>
             </div>
           ))}
