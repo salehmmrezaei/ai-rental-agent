@@ -14,6 +14,7 @@ from app.repositories import inventory as inventory_repo, operations as repo
 from app.schemas.inventory import Search
 from app.schemas.operations import ApplicationCreate, VisitCreate, SavedCreate, ConversationCreate, MessageCreate
 from app.services import inventory, operations, reporting, transactions as tx
+from app.services import agency_assistant
 
 logger = logging.getLogger(__name__)
 
@@ -36,17 +37,18 @@ def json_value(value):
 class ToolContext:
     bind: object
     actor: tx.Actor
+    role: str = "tenant"
     proposals: list[Proposal] = field(default_factory=list)
     listings: dict = field(default_factory=dict)
     calls: int = 0
 
-    def call(self, name, operation):
+    def call(self, name, operation, roles=None):
         self.calls += 1
         if self.calls > 16:
             return {"error": "tool_limit", "message": "Tool limit reached. Ask a narrower question."}
         try:
             with Session(self.bind) as session:
-                user = tx.authenticate(session, self.actor, {"tenant"})
+                user = tx.authenticate(session, self.actor, roles or ({self.role} & {"tenant", "admin"}))
                 result = operation(session, user)
             logger.info("assistant_tool name=%s outcome=ok", name)
             return json_value(result)
@@ -108,7 +110,13 @@ class ToolContext:
                 "contracts": [repo.contract_view(*r, user).model_dump(mode="json", exclude={"tenant_id"}) for r in contracts],
                 "visits": [repo.visit_view(r, user, session).model_dump(mode="json", exclude={"tenant_id", "note", "agency_note"}) for r in visits],
                 "saved_homes": saved_homes, "limit_per_collection": 10}
-        return self.call("get_my_rentals", read)
+        return self.call("get_my_rentals", read, {"tenant"})
+
+    def agency_records(self, **values):
+        return self.call("get_agency_records", lambda s, u: agency_assistant.records(s, u, **values), {"admin"})
+
+    def agency_report(self, **values):
+        return self.call("get_agency_report", lambda s, u: agency_assistant.report(s, u, **values), {"admin"})
 
     def conversations(self, conversation_id=None):
         def read(session, user):
@@ -139,13 +147,17 @@ class ToolContext:
                 raise ApiError(422, "action_limit", "Prepare at most three actions per reply")
             proposal = Proposal(kind, summary, payload)
             self.proposals.append(proposal)
-            if "listing_id" in payload:
+            if kind in {"save_listing", "apply", "request_visit"}:
                 self.listing(session, payload["listing_id"])
             return {"action_id": str(proposal.id), "status": "requires_confirmation", "summary": summary}
         return self.call("prepare_" + kind, prepare)
 
 
 def validate_proposal(session, user, kind, values):
+    if kind in agency_assistant.KINDS:
+        return agency_assistant.validate(session, user, kind, values)
+    if user.role != "tenant":
+        raise ApiError(403, "forbidden", "Tenant role required for this action")
     if kind in {"save_listing", "apply", "request_visit"}:
         cls = {"save_listing": SavedCreate, "apply": ApplicationCreate, "request_visit": VisitCreate}[kind]
         data = cls.model_validate(values)
@@ -191,6 +203,10 @@ def validate_proposal(session, user, kind, values):
 
 
 def execute_action(session, user, kind, payload):
+    if kind in agency_assistant.KINDS:
+        return agency_assistant.execute(session, user, kind, payload)
+    if user.role != "tenant":
+        raise ApiError(403, "forbidden", "Tenant role required for this action")
     # Call the existing services so locks, publication, dates and ownership are rechecked.
     if kind == "save_listing":
         return operations.save_listing(session, user, SavedCreate.model_validate(payload).listing_id)

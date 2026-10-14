@@ -2,7 +2,7 @@ import { beforeEach, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AssistantThreadDetail, AssistantAction } from "../api/assistant";
-import { mockApi, renderApp, tenant, landlord, json } from "./helpers";
+import { mockApi, renderApp, tenant, landlord, admin, json } from "./helpers";
 
 const chatId = "00000000-0000-4000-8000-000000000001";
 const listingId = "00000000-0000-4000-8000-000000000002";
@@ -199,7 +199,7 @@ it("keeps failed drafts and shows configuration errors inside the popup", async 
   expect(screen.getByLabelText("Message Blu")).toHaveValue("Find a room");
 });
 
-it("gates AI for visitors and other roles while keeping petting available", async () => {
+it("gates AI for landlords while keeping petting available", async () => {
   const { calls } = mockApi(landlord);
   renderApp("/landlord");
   await screen.findByRole("heading", { name: /Welcome back/ });
@@ -214,6 +214,33 @@ it("gates AI for visitors and other roles while keeping petting available", asyn
     "data-activity",
     "pet",
   );
+});
+
+it("lets agency admins send requests from Blu", async () => {
+  const current = thread();
+  const { calls } = mockApi(admin, (path) =>
+    path === "/assistant/status"
+      ? json({ available: true })
+      : path === "/assistant/threads"
+        ? json([])
+        : path === "/assistant/chat" || path === `/assistant/threads/${chatId}`
+          ? json(current)
+          : undefined,
+  );
+  renderApp("/admin");
+  await screen.findByRole("heading", { name: /Welcome back/ });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Open Blu assistant" }));
+  await screen.findByText(/Your agency helper/);
+  await user.click(
+    screen.getByRole("button", { name: "Show requested visits." }),
+  );
+  await user.click(screen.getByRole("button", { name: "Send request to Blu" }));
+  await screen.findByText("I prepared your agency message. Review it first.");
+  expect(calls.find((c) => c.path === "/assistant/chat")?.body).toEqual({
+    message: "Show requested visits.",
+    thread_id: null,
+  });
 });
 
 it("requires sign-in before sending requests from a public page", async () => {

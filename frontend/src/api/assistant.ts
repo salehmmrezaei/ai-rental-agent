@@ -15,7 +15,7 @@ export interface AssistantAction {
   id: string;
   kind: string;
   summary: string;
-  payload: Record<string, string | null>;
+  payload: Record<string, string | number | boolean | string[] | null>;
   status: "pending" | "confirmed" | "cancelled";
   expires_at: string;
   result: { id?: string } | null;

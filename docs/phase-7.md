@@ -4,8 +4,9 @@ Phase 7 implements the architecture roadmap's tenant assistant using the OpenAI
 Agents SDK, Responses API, live backend tools, server-side chat history and
 explicitly confirmed rental actions. The feature is available in the tenant
 sidebar at `/tenant/assistant` and from a published home's detail page.
-Landlord and agency dashboards retain their existing workflows; Phase 7 does not
-give the model agency approval or account-management capabilities.
+The tenant agent has no agency approval or account-management capabilities.
+The subsequent [agency assistant](agency-assistant.md) extension adds a separate
+admin tool set and `/admin/assistant` workspace.
 
 ## Local setup
 
@@ -17,7 +18,7 @@ the backend. Do not put it in frontend/VITE settings or commit it.
 docker compose up --build -d --wait
 ```
 
-Compose applies `0005_assistant` before starting the API. On subsequent key/config
+Compose applies migrations through `0006_agency_assistant` before starting the API. On subsequent key/config
 changes run `docker compose up -d --force-recreate backend`. For native startup,
 install the updated `backend/requirements.lock`, run Alembic to head and restart
 Uvicorn. No change to development accounts or seeded rental data is needed.
@@ -33,14 +34,14 @@ The default model is configurable; see the official [GPT-5.4 Mini model page](ht
 
 ## API and tools
 
-All assistant routes require a live authenticated **tenant**. Other roles receive
-403; another tenant's chat or action receives the same 404 as an absent record.
+All assistant routes require a live authenticated **tenant or admin**. Landlords receive
+403; another user's chat or action receives the same 404 as an absent record.
 Responses are marked `Cache-Control: no-store`.
 
 | Method / route under `/api/v1` | Behavior |
 | --- | --- |
 | GET `/assistant/status` | Configuration status; never returns keys |
-| GET `/assistant/threads` | Up to 20 recent tenant-owned chats |
+| GET `/assistant/threads` | Up to 20 recent user-owned chats |
 | GET `/assistant/threads/{id}` | Saved messages, references and action states |
 | POST `/assistant/chat` | `{message, thread_id?}`; starts/continues a server-owned chat |
 | POST `/assistant/actions/{id}/confirm` | Requires exactly the explicit boolean `{confirmed: true}` |

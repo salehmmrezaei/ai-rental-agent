@@ -7,7 +7,7 @@ availability, transactional applications/contracts, visits, private agency messa
 saved listings, occupancy reports, dashboard statistics, admin account management,
 health checks and OpenAPI documentation. The React/TypeScript/Tailwind frontend
 now provides public search and tenant, landlord and agency dashboards. Phase 7 adds a
-tenant AI rental assistant with live backend tools and explicit action confirmation.
+tenant and agency AI assistants with live backend tools and explicit action confirmation.
 
 See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 1 implementation and verification](docs/phase-1.md), and
@@ -335,6 +335,16 @@ OPENAI_MODEL=gpt-5.4-mini
 ASSISTANT_ENABLED=true
 ```
 
+Agency admins can open **AI assistant** in their sidebar at `/admin/assistant`,
+or send requests through the floating Blu companion. The agency assistant can
+create and edit properties, rooms/apartments and draft listings; submit, review,
+publish and withdraw listings; review, approve or reject rental applications;
+schedule and update visits; reply to tenant conversations; and read dashboard
+and occupancy reports. Creation uses an existing active landlord. As with the
+tenant assistant, writes require reviewing the exact action card and clicking
+**Confirm action**. Chat history is private to each signed-in user, including
+between agency admins. See [agency assistant](docs/agency-assistant.md).
+
 Then reload the backend environment:
 
 ```sh
@@ -345,7 +355,7 @@ Keep the key out of frontend/VITE settings and source control. For startup after
 code update use `docker compose up --build -d --wait`, which applies migrations.
 Without a key, the app works normally and the assistant explains that it needs
 configuration. `ASSISTANT_ENABLED=false` disables live chat. OpenAI requests use the
-Agents SDK and Responses API; only the necessary tenant data and chat are sent.
+Agents SDK and Responses API; only the necessary rental data and chat are sent.
 Local chat history is persisted in PostgreSQL. Provider response storage and SDK
 tracing are disabled. Live requests use your OpenAI API account.
 
@@ -356,7 +366,7 @@ See [Phase 7](docs/phase-7.md) for routes, tools, limits, privacy and verificati
 Phases 1–7 are implemented: inventory, moderation, uploads, search, availability,
 rental operations, private messaging, reporting, agency account management and
 backend-connected public pages and role dashboards, plus synthetic demo data and
-Docker integration verification and the tenant AI assistant.
+Docker integration verification and the tenant and agency AI assistants.
 
 Password recovery and email verification are not implemented. No external email
 is sent. Demo accounts and the Faker dataset are available through the opt-in seed. No real users,
@@ -386,7 +396,8 @@ collections support `page` and `page_size` (maximum 100). See the
 Apply `backend/.venv/bin/alembic -c backend/alembic.ini upgrade head` from the
 project root before starting this version. Migration
 `0004_operations` installs PostgreSQL `btree_gist` for visit exclusions;
-`0005_assistant` adds AI chat history and pending actions. Rental
+`0005_assistant` adds AI chat history and pending actions;
+`0006_agency_assistant` preserves tenant chats and adds agency assistant access. Rental
 dates are half-open: end dates can start another rental. Visits require timezone
 offsets and use UTC; business occupancy dates use Europe/Rome.
 

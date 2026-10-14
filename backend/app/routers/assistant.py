@@ -10,28 +10,29 @@ from app.services import assistant as service
 from app.throttle import AuthThrottle
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
-Tenant = Annotated[User, Depends(require_roles("tenant"))]
+Participant = Annotated[User, Depends(require_roles("tenant", "admin"))]
 
 
 @router.get("/status", response_model=AssistantStatus)
-def status(user: Tenant):
+def status(user: Participant):
     available = get_settings().assistant_available()
-    return AssistantStatus(available=available, message="Ready to help with your rental search." if available else
-        "The AI assistant is not configured yet. You can still browse homes and manage your rentals.")
+    ready = "Ready to help with agency requests." if user.role == "admin" else "Ready to help with your rental search."
+    return AssistantStatus(available=available, message=ready if available else
+        "The AI assistant is not configured yet. You can still use your workspace.")
 
 
 @router.get("/threads", response_model=list[ThreadRead])
-def threads(db: DB, user: Tenant):
+def threads(db: DB, user: Participant):
     return service.threads(db, user)
 
 
 @router.get("/threads/{thread_id}", response_model=ThreadDetail)
-def detail(thread_id: UUID, db: DB, user: Tenant):
+def detail(thread_id: UUID, db: DB, user: Participant):
     return service.thread_detail(db, user, thread_id)
 
 
 @router.post("/chat", response_model=ThreadDetail)
-def chat(data: ChatInput, db: DB, user: Tenant, request: Request):
+def chat(data: ChatInput, db: DB, user: Participant, request: Request):
     throttle: AuthThrottle = request.app.state.assistant_throttle
     delay = throttle.retry_after(str(user.id))
     if delay:
@@ -40,10 +41,10 @@ def chat(data: ChatInput, db: DB, user: Tenant, request: Request):
 
 
 @router.post("/actions/{action_id}/confirm", response_model=ActionRead)
-def confirm(action_id: UUID, data: Confirmation, db: DB, user: Tenant):
+def confirm(action_id: UUID, data: Confirmation, db: DB, user: Participant):
     return service.resolve_action(db, user, action_id, True)
 
 
 @router.post("/actions/{action_id}/cancel", response_model=ActionRead)
-def cancel(action_id: UUID, db: DB, user: Tenant):
+def cancel(action_id: UUID, db: DB, user: Participant):
     return service.resolve_action(db, user, action_id, False)

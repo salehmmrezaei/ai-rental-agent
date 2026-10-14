@@ -75,7 +75,8 @@ def confirm(api, actors, action_id, role="tenant", **body):
 
 def context(engine, inventory, role="tenant"):
     with Session(engine) as s:
-        return ToolContext(engine, tx.Actor.from_user(s.get(User, inventory[role])))
+        user = s.get(User, inventory[role])
+        return ToolContext(engine, tx.Actor.from_user(user), role=user.role)
 
 
 def test_configuration_and_role_boundary(api, actors, monkeypatch):
@@ -86,7 +87,9 @@ def test_configuration_and_role_boundary(api, actors, monkeypatch):
     status = api.get(BASE+"/status", headers=actors["tenant"])
     assert status.json()["available"] is False and status.headers["cache-control"] == "no-store"
     assert chat(api, actors).status_code == 503
-    for role in ("owner", "admin"):
+    assert api.get(BASE+"/status", headers=actors["admin"]).json()["available"] is False
+    assert api.post(BASE+"/chat", headers=actors["admin"], json={"message": "hello"}).status_code == 503
+    for role in ("owner",):
         assert api.get(BASE+"/status", headers=actors[role]).status_code == 403
         assert api.post(BASE+"/chat", headers=actors[role], json={"message": "hello"}).status_code == 403
 
@@ -280,15 +283,16 @@ def test_confirmation_is_atomic_under_concurrency(api, actors, inventory, model,
     with Session(engine) as s: assert s.scalar(select(func.count()).select_from(Visit)) == 1
 
 
-def test_revocation_during_agent_run_discards_reply(api, actors, inventory, model, engine, monkeypatch):
+@pytest.mark.parametrize("role", ["tenant", "admin"])
+def test_revocation_during_agent_run_discards_reply(api, actors, inventory, model, engine, monkeypatch, role):
     original = rental_agent.run_agent
     async def revoke(*args):
         result = await original(*args)
         with Session(engine) as s, s.begin():
-            s.execute(update(User).where(User.id == inventory["tenant"]).values(token_version=User.token_version+1))
+            s.execute(update(User).where(User.id == inventory[role]).values(token_version=User.token_version+1))
         return result
     monkeypatch.setattr(rental_agent, "run_agent", revoke)
-    assert chat(api, actors).status_code == 401
+    assert api.post(BASE+"/chat", headers=actors[role], json={"message": "hello"}).status_code == 401
     with Session(engine) as s: assert s.scalar(select(func.count()).select_from(AssistantThread)) == 0
 
 

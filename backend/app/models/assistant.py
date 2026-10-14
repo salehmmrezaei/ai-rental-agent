@@ -10,16 +10,16 @@ from app.models.base import Base, Record
 
 class AssistantThread(Record, Base):
     __tablename__ = "assistant_threads"
-    tenant_id: Mapped[UUID] = mapped_column(index=True)
-    tenant_role: Mapped[str] = mapped_column(String(20), default="tenant", server_default="tenant")
+    user_id: Mapped[UUID] = mapped_column(index=True)
+    user_role: Mapped[str] = mapped_column(String(20), default="tenant", server_default="tenant")
     title: Mapped[str] = mapped_column(String(100))
     version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     history: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
     __table_args__ = (
-        ForeignKeyConstraint(["tenant_id", "tenant_role"], ["users.id", "users.role"], ondelete="CASCADE"),
-        CheckConstraint("tenant_role = 'tenant'", name="tenant_role"),
+        ForeignKeyConstraint(["user_id", "user_role"], ["users.id", "users.role"], ondelete="CASCADE"),
+        CheckConstraint("user_role IN ('tenant', 'admin')", name="user_role"),
         CheckConstraint("version >= 0", name="version"),
-        UniqueConstraint("id", "tenant_id"),
+        UniqueConstraint("id", "user_id"),
     )
 
 
@@ -35,7 +35,7 @@ class AssistantMessage(Record, Base):
 class AssistantAction(Record, Base):
     __tablename__ = "assistant_actions"
     thread_id: Mapped[UUID] = mapped_column(index=True)
-    tenant_id: Mapped[UUID] = mapped_column(index=True)
+    user_id: Mapped[UUID] = mapped_column(index=True)
     message_id: Mapped[UUID] = mapped_column(ForeignKey("assistant_messages.id", ondelete="CASCADE"), index=True)
     kind: Mapped[str] = mapped_column(String(30))
     summary: Mapped[str] = mapped_column(Text)
@@ -44,7 +44,7 @@ class AssistantAction(Record, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     result: Mapped[dict | None] = mapped_column(JSONB)
     __table_args__ = (
-        ForeignKeyConstraint(["thread_id", "tenant_id"], ["assistant_threads.id", "assistant_threads.tenant_id"], ondelete="CASCADE"),
-        CheckConstraint("kind IN ('save_listing', 'apply', 'request_visit', 'contact_agency', 'send_message', 'withdraw_application', 'cancel_visit')", name="kind"),
+        ForeignKeyConstraint(["thread_id", "user_id"], ["assistant_threads.id", "assistant_threads.user_id"], ondelete="CASCADE"),
+        CheckConstraint("kind IN ('save_listing', 'apply', 'request_visit', 'contact_agency', 'send_message', 'withdraw_application', 'cancel_visit', 'create_property', 'update_property', 'create_unit', 'update_unit', 'create_listing', 'update_listing', 'change_listing_status', 'review_application', 'approve_application', 'reject_application', 'update_visit', 'send_tenant_message')", name="kind"),
         CheckConstraint("status IN ('pending', 'confirmed', 'cancelled')", name="status"),
     )

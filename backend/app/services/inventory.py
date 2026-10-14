@@ -71,7 +71,15 @@ def set_amenities(session, property_id, names):
         session.add(PropertyAmenity(property_id=property_id, amenity_id=aid))
 
 
-def create_property(session, user, data):
+def finish_change(session, record, commit_changes):
+    if commit_changes:
+        commit(session)
+    else:
+        session.flush()
+    session.refresh(record)
+
+
+def create_property(session, user, data, *, commit_changes=True):
     if user.role not in {'landlord','admin'}: raise ApiError(403, 'forbidden', 'Only landlords or agency admins can create properties')
     owner = data.landlord_id or (user.id if user.role == 'landlord' else None)
     if user.role == 'landlord' and owner != user.id: raise ApiError(403, 'forbidden', 'Cannot create property for another owner')
@@ -81,27 +89,27 @@ def create_property(session, user, data):
     prop = Property(**data.model_dump(exclude={'landlord_id','amenities'}), landlord_id=owner)
     session.add(prop); session.flush()
     set_amenities(session, prop.id, data.amenities)
-    commit(session); session.refresh(prop)
+    finish_change(session, prop, commit_changes)
     return property_view(session, prop, True)
 
 
-def update_property(session, prop_id, user, data):
+def update_property(session, prop_id, user, data, *, commit_changes=True):
     prop = lock_property(session, prop_id, user); ensure_editable(session, prop)
     fields = data.model_dump(exclude_unset=True)
     if 'amenities' in fields:
         set_amenities(session, prop.id, fields.pop('amenities'))
         prop.updated_at = func.now()
     for field,value in fields.items(): setattr(prop, field, value)
-    commit(session); session.refresh(prop)
+    finish_change(session, prop, commit_changes)
     return property_view(session, prop, True)
 
 
-def create_unit(session, property_id, user, data):
+def create_unit(session, property_id, user, data, *, commit_changes=True):
     prop = lock_property(session, property_id, user); ensure_editable(session, prop)
     count = session.scalar(select(func.count()).select_from(RentalUnit).where(RentalUnit.property_id == property_id))
     if count >= 50: raise ApiError(409, 'unit_limit', 'Maximum 50 units per property')
     unit = RentalUnit(property_id=property_id, **data.model_dump())
-    session.add(unit); commit(session); session.refresh(unit)
+    session.add(unit); finish_change(session, unit, commit_changes)
     return unit_view(session, unit)
 
 
@@ -118,10 +126,10 @@ def get_owned_unit(session, unit_id, user):
     return prop, unit
 
 
-def update_unit(session, unit_id, user, data):
+def update_unit(session, unit_id, user, data, *, commit_changes=True):
     prop, unit = get_owned_unit(session, unit_id, user); ensure_editable(session, prop)
     for field,value in data.model_dump(exclude_unset=True).items(): setattr(unit, field, value)
-    commit(session); session.refresh(unit)
+    finish_change(session, unit, commit_changes)
     return unit_view(session, unit)
 
 
@@ -146,12 +154,12 @@ def delete_property(session, property_id, user):
     return keys
 
 
-def create_listing(session, unit_id, user, data):
+def create_listing(session, unit_id, user, data, *, commit_changes=True):
     prop, unit = get_owned_unit(session, unit_id, user)
     # Independent new listings may be drafted while another unit is reviewed;
     # creating a listing changes no property/unit/image content.
     listing = Listing(rental_unit_id=unit.id, **data.model_dump())
-    session.add(listing); commit(session); session.refresh(listing)
+    session.add(listing); finish_change(session, listing, commit_changes)
     return listing
 
 
@@ -170,7 +178,7 @@ def lock_listing(session, listing_id, user, admin_only=False):
     return listing
 
 
-def update_listing(session, unit_id, user, data):
+def update_listing(session, unit_id, user, data, *, commit_changes=True):
     prop, unit = get_owned_unit(session, unit_id, user)
     listing = repo.listing_for(session, unit.id)
     if listing is None: raise ApiError(404, 'not_found', 'Listing not found')
@@ -180,11 +188,11 @@ def update_listing(session, unit_id, user, data):
     try: ListingCreate(**values)
     except ValueError: raise ApiError(422, 'invalid_dates', 'Availability end must follow start') from None
     for k,v in values.items(): setattr(listing,k,v)
-    commit(session); session.refresh(listing)
+    finish_change(session, listing, commit_changes)
     return listing
 
 
-def transition_listing(session, listing_id, user, action, note=None):
+def transition_listing(session, listing_id, user, action, note=None, *, commit_changes=True):
     listing = lock_listing(session, listing_id, user, admin_only=action in {'approved','rejected','published','unpublished'})
     allowed = {'submitted': {'draft','rejected'}, 'draft': {'submitted','approved','unpublished','rejected'},
                'approved': {'submitted'}, 'rejected': {'submitted'}, 'published': {'approved','unpublished'}, 'unpublished': {'published'}}
@@ -194,7 +202,7 @@ def transition_listing(session, listing_id, user, action, note=None):
     listing.status = action
     if action in {'draft','submitted'}: listing.review_note = None
     elif note is not None: listing.review_note = note
-    commit(session); session.refresh(listing)
+    finish_change(session, listing, commit_changes)
     return listing
 
 

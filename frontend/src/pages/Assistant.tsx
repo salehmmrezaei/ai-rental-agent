@@ -27,6 +27,9 @@ function AssistantChat({
   listingId: string | null;
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const agency = user?.role === "admin";
+  const assistantPath = agency ? "/admin/assistant" : "/tenant/assistant";
   const status = useResource<AssistantStatus>("/assistant/status");
   const chats = useResource<AssistantThread[]>("/assistant/threads");
   const history = useResource<AssistantThreadDetail>(
@@ -68,7 +71,7 @@ function AssistantChat({
       setDraft("");
       chats.reload();
       if (!chatId)
-        navigate(`/tenant/assistant?chat=${result.id}`, { replace: true });
+        navigate(`${assistantPath}?chat=${result.id}`, { replace: true });
       else setReply(result);
     } catch (cause) {
       if (!request.signal.aborted) {
@@ -136,9 +139,13 @@ function AssistantChat({
   return (
     <>
       <PageTitle
-        eyebrow="Your rental companion"
-        title="AI rental assistant"
-        description="Find a home, understand your rentals, and prepare your next step."
+        eyebrow={agency ? "Your agency workspace" : "Your rental companion"}
+        title={agency ? "AI agency assistant" : "AI rental assistant"}
+        description={
+          agency
+            ? "Give the agent requests to manage properties, listings, applications, visits, and messages."
+            : "Find a home, understand your rentals, and prepare your next step."
+        }
         action={
           <Button
             variant="secondary"
@@ -147,7 +154,7 @@ function AssistantChat({
               setReply(undefined);
               setDraft("");
               setError("");
-              navigate("/tenant/assistant");
+              navigate(assistantPath);
             }}
           >
             <MessageSquarePlus size={17} />
@@ -168,7 +175,7 @@ function AssistantChat({
                 variant="ghost"
                 disabled={pending}
                 aria-current={chat.id === chatId ? "page" : undefined}
-                onClick={() => navigate(`/tenant/assistant?chat=${chat.id}`)}
+                onClick={() => navigate(`${assistantPath}?chat=${chat.id}`)}
               >
                 {chat.title}
               </Button>
@@ -176,24 +183,35 @@ function AssistantChat({
           ) : (
             <p className="muted">Your conversations will appear here.</p>
           )}
-          <Link className="text-link" to="/listings">
-            Browse all homes
+          <Link
+            className="text-link"
+            to={agency ? "/admin/properties" : "/listings"}
+          >
+            {agency ? "View properties" : "Browse all homes"}
             <ArrowUpRight size={15} />
           </Link>
         </aside>
         <section
           className="panel assistant-chat"
-          aria-label="Rental assistant chat"
+          aria-label={
+            agency ? "Agency assistant chat" : "Rental assistant chat"
+          }
         >
           <div className="assistant-intro">
             <span className="assistant-symbol">
               <Sparkles size={23} />
             </span>
             <div>
-              <h2>A little help finding your place</h2>
+              <h2>
+                {agency
+                  ? "What would you like the agent to do?"
+                  : "A little help finding your place"}
+              </h2>
               <p>
-                Ask about budget, cities, dates, or your current rentals. You
-                review and confirm every proposed action.
+                {agency
+                  ? "Ask for property and listing changes, application decisions, visits, messages, or reports."
+                  : "Ask about budget, cities, dates, or your current rentals."}{" "}
+                You review and confirm every proposed action.
               </p>
             </div>
           </div>
@@ -239,7 +257,9 @@ function AssistantChat({
               <Loading
                 label={
                   sending
-                    ? "Checking your rental options…"
+                    ? agency
+                      ? "Checking agency records…"
+                      : "Checking your rental options…"
                     : "Updating your request…"
                 }
               />
@@ -248,11 +268,19 @@ function AssistantChat({
           </div>
           {!thread && !pending && (
             <div className="assistant-suggestions">
-              {[
-                "Find a room in Bologna under €700 a month.",
-                "What is the status of my applications?",
-                "How do I arrange a property visit?",
-              ].map((prompt) => (
+              {(agency
+                ? [
+                    "Show me listings waiting for approval.",
+                    "Help me create a property and its listing.",
+                    "Show pending applications and requested visits.",
+                    "Give me an occupancy report.",
+                  ]
+                : [
+                    "Find a room in Bologna under €700 a month.",
+                    "What is the status of my applications?",
+                    "How do I arrange a property visit?",
+                  ]
+              ).map((prompt) => (
                 <Button
                   key={prompt}
                   variant="secondary"
@@ -275,7 +303,11 @@ function AssistantChat({
               label="Message the assistant"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Tell me what you’re looking for…"
+              placeholder={
+                agency
+                  ? "Tell the agent what you need done…"
+                  : "Tell me what you’re looking for…"
+              }
               maxLength={2000}
               rows={3}
               disabled={pending || !available || !!history.error}
@@ -308,7 +340,7 @@ function AssistantChat({
           <p className="assistant-note">
             Your chat and the rental data needed to answer it are sent to
             OpenAI. Avoid sharing passwords or payment details. AI replies can
-            make mistakes; check listing details before confirming.
+            make mistakes; check the proposed details before confirming.
           </p>
         </section>
       </div>
