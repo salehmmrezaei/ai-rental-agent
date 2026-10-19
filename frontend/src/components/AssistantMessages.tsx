@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, Bot, Check } from "lucide-react";
 import type { AssistantAction, AssistantMessage } from "../api/assistant";
 import { Button, day, money, time } from "./ui";
+import { useAuth } from "../auth/AuthProvider";
 
 const actionDestinations: Record<string, [string, string]> = {
   save_listing: ["/tenant/saved", "View saved homes"],
@@ -64,13 +65,17 @@ export function AssistantActionCard({
   busy: boolean;
   resolve: (action: AssistantAction, confirm: boolean) => void;
 }) {
+  const { user } = useAuth();
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 10000);
     return () => window.clearInterval(timer);
   }, []);
   const expired = new Date(action.expires_at).getTime() <= clock;
-  const destination = actionDestinations[action.kind];
+  const destination =
+    user?.role === "landlord"
+      ? ["/landlord/properties", "View properties"]
+      : actionDestinations[action.kind];
   return (
     <section className="assistant-action" aria-label="Review proposed action">
       <p className="eyebrow">

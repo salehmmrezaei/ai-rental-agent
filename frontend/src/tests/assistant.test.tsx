@@ -227,81 +227,106 @@ for (const user of [landlord, admin]) {
     const { calls } = mockApi(user);
     renderApp("/tenant/assistant");
     await screen.findByRole("heading", { level: 1 });
-    if (user.role === "admin")
-      expect(
-        screen.getByRole("link", { name: "AI assistant" }),
-      ).toHaveAttribute("href", "/admin/assistant");
-    else
-      expect(
-        screen.queryByRole("link", { name: "AI assistant" }),
-      ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "AI assistant" })).toHaveAttribute(
+      "href",
+      `/${user.role}/assistant`,
+    );
     expect(calls.some((c) => c.path.startsWith("/assistant"))).toBe(false);
   });
 }
 
-it("handles admin requests in the agency workspace and reviews exact property changes", async () => {
-  const agencyAction: AssistantAction = {
-    ...action,
-    kind: "update_unit",
-    summary: "Update Bologna home · Room A.",
-    payload: {
-      unit_id: "unit-id",
-      monthly_rent: "725.00",
-      deposit: "0",
-      amenities: [],
-      area_sqm: null,
-    },
-  };
-  let current: AssistantThreadDetail | undefined;
-  const { calls } = mockApi(admin, (path, method) => {
-    if (path === "/assistant/status") return json({ available: true });
-    if (path === "/assistant/threads") return json(current ? [current] : []);
-    if (path === "/assistant/chat" && method === "POST") {
-      current = thread([agencyAction]);
-      current.title = "Set Room A rent to 725 euros";
-      current.messages[1].listings = [];
-      return json(current);
-    }
-    if (path === "/assistant/threads/chat-id") return json(current);
-    if (path === "/assistant/actions/action-id/confirm")
-      return json({
-        ...agencyAction,
-        status: "confirmed",
-        result: { id: "unit-id" },
-      });
-  });
-  renderApp("/admin/assistant");
-  await screen.findByRole("heading", { name: "AI agency assistant" });
-  const user = userEvent.setup();
-  await waitFor(() =>
-    expect(screen.getByLabelText("Message the assistant")).toBeEnabled(),
+it.each([admin, landlord])(
+  "handles $role requests and reviews exact property changes",
+  async (manager) => {
+    const agencyAction: AssistantAction = {
+      ...action,
+      kind: "update_unit",
+      summary: "Update Bologna home · Room A.",
+      payload: {
+        unit_id: "unit-id",
+        monthly_rent: "725.00",
+        deposit: "0",
+        amenities: [],
+        area_sqm: null,
+      },
+    };
+    let current: AssistantThreadDetail | undefined;
+    const { calls } = mockApi(manager, (path, method) => {
+      if (path === "/assistant/status") return json({ available: true });
+      if (path === "/assistant/threads") return json(current ? [current] : []);
+      if (path === "/assistant/chat" && method === "POST") {
+        current = thread([agencyAction]);
+        current.title = "Set Room A rent to 725 euros";
+        current.messages[1].listings = [];
+        return json(current);
+      }
+      if (path === "/assistant/threads/chat-id") return json(current);
+      if (path === "/assistant/actions/action-id/confirm")
+        return json({
+          ...agencyAction,
+          status: "confirmed",
+          result: { id: "unit-id" },
+        });
+    });
+    renderApp(`/${manager.role}/assistant`);
+    await screen.findByRole("heading", {
+      name:
+        manager.role === "admin"
+          ? "AI agency assistant"
+          : "AI landlord assistant",
+    });
+    const user = userEvent.setup();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Message the assistant")).toBeEnabled(),
+    );
+    await user.type(
+      screen.getByLabelText("Message the assistant"),
+      "Set Room A rent to 725 euros",
+    );
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await screen.findByText(agencyAction.summary);
+    expect(screen.getByRole("link", { name: "AI assistant" })).toHaveAttribute(
+      "href",
+      `/${manager.role}/assistant`,
+    );
+    expect(
+      screen.getByRole("button", { name: "Set Room A rent to 725 euros" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("€725.00 / month")).toBeInTheDocument();
+    expect(screen.getByText("€0.00")).toBeInTheDocument();
+    expect(screen.getByText("None")).toBeInTheDocument();
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("/confirm"))).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Confirm action" }));
+    await screen.findByText("Action completed");
+    expect(
+      within(
+        screen.getByRole("region", { name: "Review proposed action" }),
+      ).getByRole("link", { name: "View properties" }),
+    ).toHaveAttribute("href", `/${manager.role}/properties`);
+    expect(calls.find((c) => c.path.endsWith("/confirm"))?.body).toEqual({
+      confirmed: true,
+    });
+  },
+);
+
+it("prefills a landlord's managed property reference without sending it automatically", async () => {
+  const id = "00000000-0000-4000-8000-000000000003";
+  const { calls } = mockApi(landlord, (path) =>
+    path === "/assistant/status"
+      ? json({ available: true })
+      : path === "/assistant/threads"
+        ? json([])
+        : undefined,
   );
-  await user.type(
-    screen.getByLabelText("Message the assistant"),
-    "Set Room A rent to 725 euros",
+  renderApp(`/landlord/assistant?property=${id}`);
+  await screen.findByRole("heading", { name: "AI landlord assistant" });
+  expect(screen.getByLabelText("Message the assistant")).toHaveValue(
+    `Show me this property's units, listings and rental status (property ID ${id}).`,
   );
-  await user.click(screen.getByRole("button", { name: "Send message" }));
-  await screen.findByText(agencyAction.summary);
-  expect(screen.getByRole("link", { name: "AI assistant" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "View properties" })).toHaveAttribute(
     "href",
-    "/admin/assistant",
+    "/landlord/properties",
   );
-  expect(
-    screen.getByRole("button", { name: "Set Room A rent to 725 euros" }),
-  ).toHaveAttribute("aria-current", "page");
-  expect(screen.getByText("€725.00 / month")).toBeInTheDocument();
-  expect(screen.getByText("€0.00")).toBeInTheDocument();
-  expect(screen.getByText("None")).toBeInTheDocument();
-  expect(screen.getByText("Not set")).toBeInTheDocument();
-  expect(calls.some((c) => c.path.endsWith("/confirm"))).toBe(false);
-  await user.click(screen.getByRole("button", { name: "Confirm action" }));
-  await screen.findByText("Action completed");
-  expect(
-    within(
-      screen.getByRole("region", { name: "Review proposed action" }),
-    ).getByRole("link", { name: "View properties" }),
-  ).toHaveAttribute("href", "/admin/properties");
-  expect(calls.find((c) => c.path.endsWith("/confirm"))?.body).toEqual({
-    confirmed: true,
-  });
+  expect(calls.some((call) => call.path === "/assistant/chat")).toBe(false);
 });

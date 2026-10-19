@@ -56,10 +56,10 @@ action resolution. A changed record requires a fresh proposal.
 
 ## Access, setup and migration
 
-The existing `/api/v1/assistant` endpoints now accept tenants and admins. Tenant
-and agency sessions receive separate SDK instructions and tool sets; service
-checks enforce action roles independently of the model. Landlords remain unable
-to use assistant endpoints. Chats and action confirmations are private to their
+The existing `/api/v1/assistant` endpoints accept tenants, landlords and admins.
+Each role receives separate SDK instructions and tool sets; service checks enforce
+action roles independently of the model. The [landlord assistant](landlord-assistant.md)
+uses owner-scoped inventory tools. Chats and action confirmations are private to their
 owner; another admin cannot read or confirm a colleague's assistant requests.
 
 Use the existing `OPENAI_API_KEY`, `OPENAI_MODEL` and `ASSISTANT_ENABLED` settings.

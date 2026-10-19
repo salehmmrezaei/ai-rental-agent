@@ -6,7 +6,7 @@ winks, sits, reads a book, wears headphones, uses its phone and jumps. **Pet Blu
 adds a little head-pat reaction, rosy cheeks and hearts, then returns to automatic
 mode. The heart button in the popup also pets Blu.
 
-Click Blu to open **Chat**. Signed-in tenants and agency admins can give requests directly
+Click Blu to open **Chat**. Signed-in tenants, landlords and agency admins can give requests directly
 from any page, see live listing cards and review/confirm proposed actions inside
 the popup. They do not need to visit the dashboard assistant. **Activities** keeps
 all animation choices, pause/resume and hide controls. The sparkle button restores
@@ -14,8 +14,9 @@ a hidden pet. Pause/hide preferences persist in browser storage.
 
 Chat uses the existing role-scoped `/assistant` API and the same listing/action
 card components as the full dashboard assistant. Each mutation still requires an
-explicit confirmation click. Visitors see a sign-in link; landlords can use the
-pet activities. Agency admins receive [agency tools](agency-assistant.md). API
+explicit confirmation click. Visitors see a sign-in link. Landlords receive
+[owner-scoped tools](landlord-assistant.md); agency admins receive
+[agency tools](agency-assistant.md). API
 keys stay on the backend. The popup explains that chat uses OpenAI.
 
 The selected chat ID is stored per user in session storage; text/drafts stay in
@@ -40,7 +41,7 @@ requests; the user must send a chat request to invoke the agent.
 - `frontend/src/components/FloatingCompanion.css`: fixed placement and responsive controls.
 - `frontend/public/pets/blue-companion-cute-atlas.png`: current generated RGBA atlas, 971 × 1619, ten animation rows and six frames per row. The original atlas remains preserved.
 - `frontend/src/assets/blue-companion-cute-atlas.json`: actual sprite bounds and anchors, preserving consistent placement without changing the image.
-- `frontend/src/components/CompanionChat.tsx`: tenant/agency chat, recent conversations, request/confirmation lifecycle and role gates.
+- `frontend/src/components/CompanionChat.tsx`: tenant/landlord/agency chat, recent conversations, property context, request/confirmation lifecycle and role gates.
 - `frontend/src/components/AssistantMessages.tsx`: shared verified listing and action cards for the popup and full assistant page.
 
 The PNG was created with the **built-in imagegen tool**, using the user's attached

@@ -199,15 +199,55 @@ it("keeps failed drafts and shows configuration errors inside the popup", async 
   expect(screen.getByLabelText("Message Blu")).toHaveValue("Find a room");
 });
 
-it("gates AI for landlords while keeping petting available", async () => {
-  const { calls } = mockApi(landlord);
+it("lets landlords prepare and confirm property changes from Blu", async () => {
+  const landlordAction: AssistantAction = {
+    ...action,
+    kind: "update_unit",
+    summary: "Update Bologna home · Room A.",
+    payload: { unit_id: "unit-id", monthly_rent: "725.00" },
+  };
+  const current = thread([landlordAction]);
+  current.messages[1].content = "Review your room's new rent.";
+  const { calls } = mockApi(landlord, (path) =>
+    path === "/assistant/status"
+      ? json({ available: true })
+      : path === "/assistant/threads"
+        ? json([])
+        : path === "/assistant/chat" || path === `/assistant/threads/${chatId}`
+          ? json(current)
+          : path === "/assistant/actions/action-id/confirm"
+            ? json({
+                ...landlordAction,
+                status: "confirmed",
+                result: { id: "unit-id" },
+              })
+            : undefined,
+  );
   renderApp("/landlord");
   await screen.findByRole("heading", { name: /Welcome back/ });
   await userEvent.click(
     screen.getByRole("button", { name: "Open Blu assistant" }),
   );
-  await screen.findByText(/available with a tenant account/);
-  expect(calls.some((c) => c.path.startsWith("/assistant"))).toBe(false);
+  await screen.findByText(/Your property helper/);
+  await waitFor(() =>
+    expect(screen.getByLabelText("Message Blu")).toBeEnabled(),
+  );
+  await userEvent.type(
+    screen.getByLabelText("Message Blu"),
+    "Set Room A rent to 725 euros",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Send request to Blu" }),
+  );
+  await screen.findByText(landlordAction.summary);
+  expect(screen.getByText("€725.00 / month")).toBeInTheDocument();
+  expect(calls.some((c) => c.path.endsWith("/confirm"))).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Confirm action" }));
+  await screen.findByText("Action completed");
+  expect(screen.getByRole("link", { name: "View properties" })).toHaveAttribute(
+    "href",
+    "/landlord/properties",
+  );
   await userEvent.click(screen.getByRole("tab", { name: "Activities" }));
   await userEvent.click(screen.getByRole("button", { name: "Pet Blu" }));
   expect(document.querySelector(".companion-walker")).toHaveAttribute(

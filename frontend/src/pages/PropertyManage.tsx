@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Edit3, Plus, Trash2, Camera, ArrowUpRight } from "lucide-react";
+import {
+  Edit3,
+  Plus,
+  Trash2,
+  Camera,
+  ArrowUpRight,
+  Sparkles,
+} from "lucide-react";
 import { api } from "../api/client";
 import type {
   PropertyDetail,
@@ -65,6 +72,13 @@ export function PropertyManagePage() {
                 description={`${property.address}, ${property.postal_code}`}
                 action={
                   <div className="flex flex-wrap gap-2">
+                    <Link
+                      className="btn btn-secondary"
+                      to={`/${user!.role}/assistant?property=${id}`}
+                    >
+                      <Sparkles size={16} />
+                      Ask AI assistant
+                    </Link>
                     <Link
                       className="btn btn-secondary"
                       to={`${base}/${id}/edit`}

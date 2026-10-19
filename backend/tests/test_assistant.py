@@ -90,8 +90,8 @@ def test_configuration_and_role_boundary(api, actors, monkeypatch):
     assert api.get(BASE+"/status", headers=actors["admin"]).json()["available"] is False
     assert api.post(BASE+"/chat", headers=actors["admin"], json={"message": "hello"}).status_code == 503
     for role in ("owner",):
-        assert api.get(BASE+"/status", headers=actors[role]).status_code == 403
-        assert api.post(BASE+"/chat", headers=actors[role], json={"message": "hello"}).status_code == 403
+        assert api.get(BASE+"/status", headers=actors[role]).json()["available"] is False
+        assert api.post(BASE+"/chat", headers=actors[role], json={"message": "hello"}).status_code == 503
 
 
 def test_sdk_search_sources_and_server_history(api, actors, inventory, model):
@@ -283,7 +283,7 @@ def test_confirmation_is_atomic_under_concurrency(api, actors, inventory, model,
     with Session(engine) as s: assert s.scalar(select(func.count()).select_from(Visit)) == 1
 
 
-@pytest.mark.parametrize("role", ["tenant", "admin"])
+@pytest.mark.parametrize("role", ["tenant", "owner", "admin"])
 def test_revocation_during_agent_run_discards_reply(api, actors, inventory, model, engine, monkeypatch, role):
     original = rental_agent.run_agent
     async def revoke(*args):

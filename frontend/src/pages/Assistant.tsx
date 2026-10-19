@@ -22,14 +22,17 @@ import {
 function AssistantChat({
   chatId,
   listingId,
+  propertyId,
 }: {
   chatId: string | null;
   listingId: string | null;
+  propertyId: string | null;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const agency = user?.role === "admin";
-  const assistantPath = agency ? "/admin/assistant" : "/tenant/assistant";
+  const landlord = user?.role === "landlord";
+  const assistantPath = `/${user?.role || "tenant"}/assistant`;
   const status = useResource<AssistantStatus>("/assistant/status");
   const chats = useResource<AssistantThread[]>("/assistant/threads");
   const history = useResource<AssistantThreadDetail>(
@@ -37,9 +40,11 @@ function AssistantChat({
   );
   const [reply, setReply] = useState<AssistantThreadDetail>();
   const [draft, setDraft] = useState(
-    listingId && /^[a-f0-9-]{36}$/i.test(listingId)
-      ? `Tell me about this home (listing ID ${listingId}).`
-      : "",
+    propertyId && /^[a-f0-9-]{36}$/i.test(propertyId)
+      ? `Show me this property's units, listings and rental status (property ID ${propertyId}).`
+      : listingId && /^[a-f0-9-]{36}$/i.test(listingId)
+        ? `Tell me about this home (listing ID ${listingId}).`
+        : "",
   );
   const [pending, setPending] = useState(false);
   const [sending, setSending] = useState("");
@@ -139,12 +144,26 @@ function AssistantChat({
   return (
     <>
       <PageTitle
-        eyebrow={agency ? "Your agency workspace" : "Your rental companion"}
-        title={agency ? "AI agency assistant" : "AI rental assistant"}
+        eyebrow={
+          agency
+            ? "Your agency workspace"
+            : landlord
+              ? "Your property workspace"
+              : "Your rental companion"
+        }
+        title={
+          agency
+            ? "AI agency assistant"
+            : landlord
+              ? "AI landlord assistant"
+              : "AI rental assistant"
+        }
         description={
           agency
             ? "Give the agent requests to manage properties, listings, applications, visits, and messages."
-            : "Find a home, understand your rentals, and prepare your next step."
+            : landlord
+              ? "Manage your properties, prepare listings, and understand your occupancy and rental contracts."
+              : "Find a home, understand your rentals, and prepare your next step."
         }
         action={
           <Button
@@ -185,16 +204,20 @@ function AssistantChat({
           )}
           <Link
             className="text-link"
-            to={agency ? "/admin/properties" : "/listings"}
+            to={agency || landlord ? `/${user?.role}/properties` : "/listings"}
           >
-            {agency ? "View properties" : "Browse all homes"}
+            {agency || landlord ? "View properties" : "Browse all homes"}
             <ArrowUpRight size={15} />
           </Link>
         </aside>
         <section
           className="panel assistant-chat"
           aria-label={
-            agency ? "Agency assistant chat" : "Rental assistant chat"
+            agency
+              ? "Agency assistant chat"
+              : landlord
+                ? "Landlord assistant chat"
+                : "Rental assistant chat"
           }
         >
           <div className="assistant-intro">
@@ -203,14 +226,16 @@ function AssistantChat({
             </span>
             <div>
               <h2>
-                {agency
+                {agency || landlord
                   ? "What would you like the agent to do?"
                   : "A little help finding your place"}
               </h2>
               <p>
                 {agency
                   ? "Ask for property and listing changes, application decisions, visits, messages, or reports."
-                  : "Ask about budget, cities, dates, or your current rentals."}{" "}
+                  : landlord
+                    ? "Ask me to add a property, update room prices, prepare a listing, or check occupancy and rental dates."
+                    : "Ask about budget, cities, dates, or your current rentals."}{" "}
                 You review and confirm every proposed action.
               </p>
             </div>
@@ -259,7 +284,9 @@ function AssistantChat({
                   sending
                     ? agency
                       ? "Checking agency records…"
-                      : "Checking your rental options…"
+                      : landlord
+                        ? "Checking your properties…"
+                        : "Checking your rental options…"
                     : "Updating your request…"
                 }
               />
@@ -275,11 +302,18 @@ function AssistantChat({
                     "Show pending applications and requested visits.",
                     "Give me an occupancy report.",
                   ]
-                : [
-                    "Find a room in Bologna under €700 a month.",
-                    "What is the status of my applications?",
-                    "How do I arrange a property visit?",
-                  ]
+                : landlord
+                  ? [
+                      "Show my properties and listings that need attention.",
+                      "Help me add a property and its rooms.",
+                      "Help me update a room's rent and listing dates.",
+                      "Give me an occupancy and contracted rent report.",
+                    ]
+                  : [
+                      "Find a room in Bologna under €700 a month.",
+                      "What is the status of my applications?",
+                      "How do I arrange a property visit?",
+                    ]
               ).map((prompt) => (
                 <Button
                   key={prompt}
@@ -304,7 +338,7 @@ function AssistantChat({
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               placeholder={
-                agency
+                agency || landlord
                   ? "Tell the agent what you need done…"
                   : "Tell me what you’re looking for…"
               }
@@ -353,11 +387,13 @@ export function AssistantPage() {
   const { user } = useAuth();
   const chatId = params.get("chat");
   const listingId = params.get("listing");
+  const propertyId = params.get("property");
   return (
     <AssistantChat
-      key={`${user?.id}:${chatId}:${listingId}`}
+      key={`${user?.id}:${chatId}:${listingId}:${propertyId}`}
       chatId={chatId}
       listingId={listingId}
+      propertyId={propertyId}
     />
   );
 }
