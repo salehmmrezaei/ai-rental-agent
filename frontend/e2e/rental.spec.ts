@@ -43,6 +43,52 @@ test("tenant assistant explains setup and remains accessible on desktop and mobi
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
+test("landlord assistant and Blu stay accessible on desktop and mobile", async ({
+  page,
+}) => {
+  await page.goto("/register?role=landlord");
+  await page.getByLabel("Full name").fill("Synthetic Assistant Landlord");
+  await page
+    .getByLabel("Email address")
+    .fill(
+      `synthetic.landlord.assistant.${randomUUID().slice(0, 8)}@example.com`,
+    );
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill(randomUUID() + randomUUID());
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page).toHaveURL(/\/landlord$/);
+  await page.getByRole("link", { name: "AI assistant", exact: true }).click();
+  await expect(page).toHaveURL(/\/landlord\/assistant$/);
+  await expect(
+    page.getByRole("heading", { name: "AI landlord assistant" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Message the assistant")).toBeDisabled();
+  await expect(
+    page.getByRole("link", { name: "View properties" }),
+  ).toHaveAttribute("href", "/landlord/properties");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "AI landlord assistant" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Message the assistant")).toBeDisabled();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole("button", { name: "Open Blu assistant" }).click();
+  const blu = page.getByRole("dialog", { name: "Blu assistant" });
+  await expect(blu.getByText(/Your property helper/)).toBeVisible();
+  await expect(blu.getByLabel("Message Blu")).toBeDisabled();
+  await expect(
+    blu.getByText("The AI assistant is not configured yet.", { exact: false }),
+  ).toBeVisible();
+});
+
 async function signIn(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Email address", { exact: true }).fill(email);

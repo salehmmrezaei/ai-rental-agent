@@ -10,13 +10,15 @@ from app.services import assistant as service
 from app.throttle import AuthThrottle
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
-Participant = Annotated[User, Depends(require_roles("tenant", "admin"))]
+Participant = Annotated[User, Depends(require_roles("tenant", "landlord", "admin"))]
 
 
 @router.get("/status", response_model=AssistantStatus)
 def status(user: Participant):
     available = get_settings().assistant_available()
-    ready = "Ready to help with agency requests." if user.role == "admin" else "Ready to help with your rental search."
+    ready = {"admin": "Ready to help with agency requests.",
+             "landlord": "Ready to help manage your properties and listings.",
+             "tenant": "Ready to help with your rental search."}[user.role]
     return AssistantStatus(available=available, message=ready if available else
         "The AI assistant is not configured yet. You can still use your workspace.")
 

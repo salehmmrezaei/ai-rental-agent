@@ -7,6 +7,8 @@ sidebar at `/tenant/assistant` and from a published home's detail page.
 The tenant agent has no agency approval or account-management capabilities.
 The subsequent [agency assistant](agency-assistant.md) extension adds a separate
 admin tool set and `/admin/assistant` workspace.
+The [landlord assistant](landlord-assistant.md) adds an owner-scoped tool set at
+`/landlord/assistant` and in Blu.
 
 ## Local setup
 
@@ -18,7 +20,7 @@ the backend. Do not put it in frontend/VITE settings or commit it.
 docker compose up --build -d --wait
 ```
 
-Compose applies migrations through `0006_agency_assistant` before starting the API. On subsequent key/config
+Compose applies migrations through `0007_landlord_assistant` before starting the API. On subsequent key/config
 changes run `docker compose up -d --force-recreate backend`. For native startup,
 install the updated `backend/requirements.lock`, run Alembic to head and restart
 Uvicorn. No change to development accounts or seeded rental data is needed.
@@ -34,8 +36,8 @@ The default model is configurable; see the official [GPT-5.4 Mini model page](ht
 
 ## API and tools
 
-All assistant routes require a live authenticated **tenant or admin**. Landlords receive
-403; another user's chat or action receives the same 404 as an absent record.
+All assistant routes require a live authenticated **tenant, landlord or admin**.
+Each role receives its own tools; another user's chat or action receives the same 404 as an absent record.
 Responses are marked `Cache-Control: no-store`.
 
 | Method / route under `/api/v1` | Behavior |

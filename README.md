@@ -7,7 +7,7 @@ availability, transactional applications/contracts, visits, private agency messa
 saved listings, occupancy reports, dashboard statistics, admin account management,
 health checks and OpenAPI documentation. The React/TypeScript/Tailwind frontend
 now provides public search and tenant, landlord and agency dashboards. Phase 7 adds a
-tenant and agency AI assistants with live backend tools and explicit action confirmation.
+tenant, landlord and agency AI assistants with live backend tools and explicit action confirmation.
 
 See [architecture, schema, API plan and roadmap](docs/architecture.md) and
 [Phase 1 implementation and verification](docs/phase-1.md), and
@@ -335,6 +335,14 @@ OPENAI_MODEL=gpt-5.4-mini
 ASSISTANT_ENABLED=true
 ```
 
+Landlords can open **AI assistant** at `/landlord/assistant` or use the Blu
+companion. The agent manages their own properties, rooms/apartments, rent,
+deposits, amenities and draft listing availability; submits or withdraws eligible
+listings; checks rental dates; and reads private contract and occupancy reports.
+Every change requires a confirmation click. Ownership is assigned automatically,
+and listing approval/publication stays with the agency. Open **Ask AI assistant**
+on a property to start with its reference. See [landlord assistant](docs/landlord-assistant.md).
+
 Agency admins can open **AI assistant** in their sidebar at `/admin/assistant`,
 or send requests through the floating Blu companion. The agency assistant can
 create and edit properties, rooms/apartments and draft listings; submit, review,
@@ -397,7 +405,8 @@ Apply `backend/.venv/bin/alembic -c backend/alembic.ini upgrade head` from the
 project root before starting this version. Migration
 `0004_operations` installs PostgreSQL `btree_gist` for visit exclusions;
 `0005_assistant` adds AI chat history and pending actions;
-`0006_agency_assistant` preserves tenant chats and adds agency assistant access. Rental
+`0006_agency_assistant` preserves tenant chats and adds agency assistant access;
+`0007_landlord_assistant` enables private landlord assistant history. Rental
 dates are half-open: end dates can start another rental. Visits require timezone
 offsets and use UTC; business occupancy dates use Europe/Rome.
 

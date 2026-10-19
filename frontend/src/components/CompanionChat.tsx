@@ -25,11 +25,13 @@ function restoreChat(userId: string) {
 function UserChat({
   userId,
   agency,
+  landlord,
   active,
   onBusyChange,
 }: {
   userId: string;
   agency: boolean;
+  landlord: boolean;
   active: boolean;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -55,6 +57,15 @@ function UserChat({
   const listingId = /^\/listings\/([a-f0-9-]{36})$/i.exec(
     location.pathname,
   )?.[1];
+  const propertyId =
+    /^\/(?:landlord|admin)\/properties\/([a-f0-9-]{36})(?:\/edit)?$/i.exec(
+      location.pathname,
+    )?.[1];
+  const pageContext = propertyId
+    ? `Current managed property ID: ${propertyId}`
+    : listingId
+      ? `Current home listing ID: ${listingId}`
+      : "";
   const blocked =
     !available ||
     pending ||
@@ -95,12 +106,10 @@ function UserChat({
   async function send() {
     if (blocked || !draft.trim()) return;
     const original = draft.trim();
-    const message = listingId
-      ? `${original}\n\nCurrent home listing ID: ${listingId}`
-      : original;
+    const message = pageContext ? `${original}\n\n${pageContext}` : original;
     if (message.length > 2000) {
       setError(
-        "Please shorten your message to leave room for this home's reference.",
+        "Please shorten your message to leave room for this property's reference.",
       );
       return;
     }
@@ -262,7 +271,9 @@ function UserChat({
             <p>
               {agency
                 ? "Your agency helper. Ask me to manage properties, listings, applications, visits, messages, or reports."
-                : "Your tiny helper for finding a home. Tell me what you need — I’m all ears."}
+                : landlord
+                  ? "Your property helper. Ask me to manage your properties, rooms, prices, listings, or occupancy reports."
+                  : "Your tiny helper for finding a home. Tell me what you need — I’m all ears."}
             </p>
             <div className="companion-chat-prompts">
               {(agency
@@ -271,11 +282,17 @@ function UserChat({
                     "Help me create a property and its listing.",
                     "Show requested visits.",
                   ]
-                : [
-                    "Find rooms in Bologna under €600/month.",
-                    "Check my applications.",
-                    "Help me ask the agency about utilities.",
-                  ]
+                : landlord
+                  ? [
+                      "Show my properties and draft listings.",
+                      "Help me add a property and its rooms.",
+                      "Give me an occupancy and contracted rent report.",
+                    ]
+                  : [
+                      "Find rooms in Bologna under €600/month.",
+                      "Check my applications.",
+                      "Help me ask the agency about utilities.",
+                    ]
               ).map((prompt) => (
                 <button
                   key={prompt}
@@ -324,10 +341,12 @@ function UserChat({
           void send();
         }}
       >
-        {listingId && (
+        {pageContext && (
           <p className="companion-chat-context">
             <Sparkles size={12} />
-            Blu can see which home you’re viewing.
+            {propertyId
+              ? "Blu can see which property you’re managing."
+              : "Blu can see which home you’re viewing."}
           </p>
         )}
         <label htmlFor={`blu-message-${userId}`}>Message Blu</label>
@@ -336,7 +355,7 @@ function UserChat({
             ref={input}
             id={`blu-message-${userId}`}
             rows={2}
-            maxLength={listingId ? 1900 : 2000}
+            maxLength={pageContext ? 1900 : 2000}
             value={draft}
             placeholder="What can I do for you?"
             disabled={blocked}
@@ -381,12 +400,13 @@ export function CompanionChat({
         <Button onClick={() => void refresh()}>Retry account check</Button>
       </div>
     );
-  if (user?.role === "tenant" || user?.role === "admin")
+  if (user)
     return (
       <UserChat
         key={`${user.id}:${user.role}`}
         userId={user.id}
         agency={user.role === "admin"}
+        landlord={user.role === "landlord"}
         active={active}
         onBusyChange={onBusyChange}
       />
@@ -395,11 +415,7 @@ export function CompanionChat({
     <div className="companion-chat-gate">
       <Sparkles size={28} />
       <h3>Your tiny rental helper</h3>
-      <p>
-        {user
-          ? "Blu’s rental assistant is available with a tenant account or agency admin account. You can still pet Blu and enjoy its activities."
-          : "Sign in as a tenant or agency admin to give Blu your requests right here."}
-      </p>
+      <p>Sign in to give Blu requests for your rental or property workspace.</p>
       {!user && (
         <Link
           className="btn btn-primary"

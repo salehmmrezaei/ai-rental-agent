@@ -17,7 +17,7 @@ class AssistantThread(Record, Base):
     history: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
     __table_args__ = (
         ForeignKeyConstraint(["user_id", "user_role"], ["users.id", "users.role"], ondelete="CASCADE"),
-        CheckConstraint("user_role IN ('tenant', 'admin')", name="user_role"),
+        CheckConstraint("user_role IN ('tenant', 'landlord', 'admin')", name="user_role"),
         CheckConstraint("version >= 0", name="version"),
         UniqueConstraint("id", "user_id"),
     )

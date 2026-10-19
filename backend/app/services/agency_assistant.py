@@ -8,7 +8,7 @@ from app.errors import ApiError
 from app.models import Property, RentalUnit, Listing, RentalRequest, RentalContract, Visit, Conversation, User
 from app.repositories import inventory as inventory_repo, operations as repo
 from app.schemas import inventory as inv, operations as ops
-from app.services import inventory, operations, reporting
+from app.services import inventory, operations, reporting, landlord_assistant
 
 KINDS = {"create_property", "update_property", "create_unit", "update_unit", "create_listing",
          "update_listing", "change_listing_status", "review_application", "approve_application",
@@ -128,8 +128,7 @@ def report(session, user, kind, as_of=None, page=1):
 
 
 def validate(session, user, kind, values):
-    require_admin(user)
-    values = dict(values)
+    values = authorize_action(session, user, kind, values)
     target = None
     if kind == "create_property":
         data = inv.PropertyCreate.model_validate(values)
@@ -255,8 +254,7 @@ def validate(session, user, kind, values):
 
 
 def execute(session, user, kind, payload):
-    require_admin(user)
-    values = dict(payload)
+    values = authorize_action(session, user, kind, payload)
     expected = values.pop("expected_updated_at", None)
     if kind in {"update_property", "create_unit"}:
         target = lock_record(session, Property, values["property_id"])
@@ -302,6 +300,13 @@ def execute(session, user, kind, payload):
     if kind == "send_tenant_message":
         return operations.send_message(session, user, UUID(values["conversation_id"]), ops.MessageCreate(body=values["body"]))
     raise ApiError(422, "unknown_action", "Unsupported agency action")
+
+
+def authorize_action(session, user, kind, values):
+    if user.role == "landlord":
+        return landlord_assistant.authorize_action(session, user, kind, values)
+    require_admin(user)
+    return dict(values)
 
 
 def lock_record(session, model, identifier):

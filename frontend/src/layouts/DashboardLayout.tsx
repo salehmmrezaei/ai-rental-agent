@@ -38,6 +38,7 @@ const menus: Record<Role, NavItem[]> = {
   ],
   landlord: [
     ["", "Overview", LayoutDashboard],
+    ["assistant", "AI assistant", Sparkles],
     ["properties", "My properties", Building2],
     ["occupancy", "Occupancy", ChartNoAxesCombined],
     ["contracts", "Rental history", KeyRound],

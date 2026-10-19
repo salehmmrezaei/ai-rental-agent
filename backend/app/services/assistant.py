@@ -160,6 +160,6 @@ def resolve_action(db, user, action_id: UUID, confirm: bool):
         session.flush()
         return ActionRead.model_validate(action)
 
-    result = tx.run(bind, actor, {role} & {"tenant", "admin"}, operation)
+    result = tx.run(bind, actor, {role} & {"tenant", "landlord", "admin"}, operation)
     logger.info("assistant_action kind=%s outcome=%s", result.kind, result.status)
     return result

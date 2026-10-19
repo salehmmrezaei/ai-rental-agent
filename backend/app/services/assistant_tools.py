@@ -14,7 +14,7 @@ from app.repositories import inventory as inventory_repo, operations as repo
 from app.schemas.inventory import Search
 from app.schemas.operations import ApplicationCreate, VisitCreate, SavedCreate, ConversationCreate, MessageCreate
 from app.services import inventory, operations, reporting, transactions as tx
-from app.services import agency_assistant
+from app.services import agency_assistant, landlord_assistant
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class ToolContext:
             return {"error": "tool_limit", "message": "Tool limit reached. Ask a narrower question."}
         try:
             with Session(self.bind) as session:
-                user = tx.authenticate(session, self.actor, roles or ({self.role} & {"tenant", "admin"}))
+                user = tx.authenticate(session, self.actor, roles or ({self.role} & {"tenant", "landlord", "admin"}))
                 result = operation(session, user)
             logger.info("assistant_tool name=%s outcome=ok", name)
             return json_value(result)
@@ -118,6 +118,15 @@ class ToolContext:
     def agency_report(self, **values):
         return self.call("get_agency_report", lambda s, u: agency_assistant.report(s, u, **values), {"admin"})
 
+    def landlord_records(self, **values):
+        return self.call("get_landlord_records", lambda s, u: landlord_assistant.records(s, u, **values), {"landlord"})
+
+    def landlord_report(self, **values):
+        return self.call("get_landlord_report", lambda s, u: landlord_assistant.report(s, u, **values), {"landlord"})
+
+    def landlord_availability(self, **values):
+        return self.call("check_my_unit_availability", lambda s, u: landlord_assistant.availability(s, u, **values), {"landlord"})
+
     def conversations(self, conversation_id=None):
         def read(session, user):
             if conversation_id:
@@ -131,7 +140,7 @@ class ToolContext:
                 return {"id": str(c.id), "subject": c.subject, "messages": messages}
             rows = session.scalars(repo.conversations(user).order_by(Conversation.updated_at.desc()).limit(10)).all()
             return {"items": [{"id": str(c.id), "subject": c.subject} for c in rows]}
-        return self.call("get_agency_conversations", read)
+        return self.call("get_agency_conversations", read, {"tenant", "admin"})
 
     def propose(self, kind, values):
         def prepare(session, user):
