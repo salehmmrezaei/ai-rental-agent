@@ -222,7 +222,8 @@ export function FloatingCompanion() {
         setActive("idle");
         setMode("auto");
       }
-      if (!open && !engaged && !thinking) {
+      // Selecting an activity restores focus to Blu; explicit walks should continue.
+      if (!open && !thinking && (!engaged || mode !== "auto")) {
         const next = movePet(
           state.offset,
           state.kind,

@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   Sparkles,
+  House,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
@@ -58,6 +59,11 @@ const menus: Record<Role, NavItem[]> = {
     ["profile", "My profile", UserRound],
   ],
 };
+const workspaceIdentity = {
+  tenant: { label: "Tenant", icon: House },
+  landlord: { label: "Landlord", icon: KeyRound },
+  admin: { label: "Agency", icon: Building2 },
+};
 export function DashboardLayout() {
   const auth = useAuth();
   const location = useLocation();
@@ -72,12 +78,14 @@ export function DashboardLayout() {
     return () => window.removeEventListener("keydown", close);
   }, [open]);
   const user = auth.user!;
+  const identity = workspaceIdentity[user.role];
+  const RoleIcon = identity.icon;
   const label =
     menus[user.role].find(
       ([path]) => path && location.pathname.includes(`/${path}`),
     )?.[1] || "Overview";
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-layout" data-role={user.role}>
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -93,9 +101,8 @@ export function DashboardLayout() {
           </button>
         </div>
         <p className="sidebar-caption">
-          {user.role === "admin"
-            ? "Agency workspace"
-            : `${user.role} workspace`}
+          <RoleIcon size={14} aria-hidden="true" />
+          {identity.label} workspace
         </p>
         <nav id="dashboard-navigation" aria-label="Dashboard navigation">
           {menus[user.role].map(([path, title, Icon]) => (
@@ -121,9 +128,7 @@ export function DashboardLayout() {
             </span>
             <div>
               <strong>{user.full_name}</strong>
-              <small>
-                {user.role === "admin" ? "Rental agency" : user.role}
-              </small>
+              <small>{identity.label} account</small>
             </div>
           </div>
           <Button
@@ -156,7 +161,11 @@ export function DashboardLayout() {
               <Menu size={21} />
             </button>
             <span className="breadcrumb">
-              Workspace <span>/</span> <strong>{label}</strong>
+              <span className="workspace-badge">
+                <RoleIcon size={14} aria-hidden="true" />
+                {identity.label}
+              </span>
+              <span>/</span> <strong>{label}</strong>
             </span>
           </div>
           <Link to="/listings" className="text-link">

@@ -890,3 +890,476 @@
     transition: none;
   }
 }
+
+/* Account identity follows the signed-in role throughout the workspace. */
+.dashboard-layout,
+.profile-page,
+.dashboard-layout ~ .companion {
+  --workspace-accent: #173f35;
+  --workspace-hover: #285446;
+  --workspace-canvas: #f0f5e9;
+  --workspace-surface: #fbfdf8;
+  --workspace-soft: #e4edd8;
+  --workspace-border: #cddcbe;
+  --workspace-sidebar: #e8efdf;
+  --workspace-topbar: #e0e9d5;
+  --workspace-ink: #253d34;
+  --workspace-muted: #506348;
+}
+.dashboard-layout[data-role="landlord"],
+.profile-page[data-role="landlord"],
+.dashboard-layout[data-role="landlord"] ~ .companion {
+  --workspace-accent: #824329;
+  --workspace-hover: #68331e;
+  --workspace-canvas: #fbf0e7;
+  --workspace-surface: #fffaf6;
+  --workspace-soft: #f5e2d3;
+  --workspace-border: #e5c6b0;
+  --workspace-sidebar: #f4e4d6;
+  --workspace-topbar: #f1ddcd;
+  --workspace-ink: #422e25;
+  --workspace-muted: #755847;
+}
+.dashboard-layout[data-role="admin"],
+.profile-page[data-role="admin"],
+.dashboard-layout[data-role="admin"] ~ .companion {
+  --workspace-accent: #2b4b70;
+  --workspace-hover: #203b5b;
+  --workspace-canvas: #edf3fb;
+  --workspace-surface: #f9fbff;
+  --workspace-soft: #e0eaf7;
+  --workspace-border: #c6d6eb;
+  --workspace-sidebar: #dfe9f6;
+  --workspace-topbar: #d9e5f5;
+  --workspace-ink: #263a54;
+  --workspace-muted: #526882;
+}
+.dashboard-layout {
+  background: var(--workspace-canvas);
+  color: var(--workspace-ink);
+}
+.dashboard-layout .dashboard-main {
+  background: var(--workspace-canvas);
+}
+.dashboard-layout .dashboard-topbar {
+  background: var(--workspace-topbar);
+  border-bottom-color: var(--workspace-border);
+}
+.dashboard-layout :is(h1, h2, h3, td strong, .field label, .record-details dd) {
+  color: var(--workspace-ink);
+}
+.dashboard-layout
+  :is(
+    .muted,
+    .eyebrow,
+    .page-title p,
+    .field small,
+    .record-top p,
+    .record-note,
+    .record-details dt,
+    .location,
+    .description,
+    .property-description,
+    .empty p,
+    .loading,
+    .pagination,
+    .checkbox-label,
+    .modal form > p,
+    .quick-actions p,
+    .stat-card > span,
+    .stat-card > small,
+    .occupancy-banner p,
+    .occupancy-banner h2 span,
+    .attention-title p,
+    .sidebar nav a:not(.active),
+    .sidebar-explore,
+    .user-chip small,
+    .dashboard-footer,
+    .breadcrumb,
+    .breadcrumb strong,
+    .breadcrumb > span:not(.workspace-badge),
+    .brand-period,
+    .profile-account p,
+    .profile-purpose,
+    .report-note,
+    .tabs button,
+    .tabs span,
+    .unit-listing,
+    .message-meta,
+    .message-bubble p,
+    .conversation-item,
+    .conversation-item > span,
+    .conversation-item b,
+    .assistant-intro p,
+    .assistant-home > span,
+    .assistant-home > small,
+    .assistant-action dt,
+    .assistant-note,
+    td,
+    td small
+  ) {
+  color: var(--workspace-muted);
+}
+.dashboard-layout
+  :is(
+    .brand,
+    .text-link,
+    .stat-card-icon,
+    .stat-card > strong,
+    .quick-actions > a > div,
+    .tabs button.active,
+    .assistant-speaker,
+    .card-view-link
+  ) {
+  color: var(--workspace-accent);
+}
+.dashboard-layout .brand-symbol {
+  border-color: var(--workspace-accent);
+}
+.dashboard-layout .page-title {
+  padding: 24px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 16px;
+  background: var(--workspace-soft);
+}
+.dashboard-layout
+  :is(
+    .panel,
+    .stat-card,
+    .quick-actions > a,
+    .record-card,
+    .listing-card,
+    .inbox-sidebar,
+    .message-thread,
+    .modal,
+    .conversation-item,
+    .empty,
+    .assistant-home,
+    .assistant-action,
+    .profile-role-icon
+  ) {
+  background: var(--workspace-surface);
+  border-color: var(--workspace-border);
+}
+.dashboard-layout .stats-grid .stat-card {
+  border-top: 3px solid var(--workspace-accent);
+}
+.dashboard-layout :is(.stat-card:hover, .quick-actions > a:hover) {
+  background: var(--workspace-soft);
+  border-color: var(--workspace-accent);
+}
+.dashboard-layout
+  :is(
+    .attention-panel,
+    .occupancy-banner,
+    .review-note,
+    .tag-list span,
+    .property-card-icon,
+    .property-cover,
+    .image-placeholder,
+    .photo-viewer > img,
+    .empty-icon,
+    .assistant-symbol,
+    .assistant-chats [aria-current="page"],
+    .conversation-item.selected,
+    .message-bubble,
+    .assistant-message.own
+  ) {
+  background: var(--workspace-soft);
+  border-color: var(--workspace-border);
+  color: var(--workspace-accent);
+}
+.dashboard-layout :is(.attention-title > span, .attention-links a) {
+  background: var(--workspace-surface);
+  border-color: var(--workspace-border);
+  color: var(--workspace-accent);
+}
+.dashboard-layout .attention-links strong {
+  background: var(--workspace-soft);
+}
+.dashboard-layout :is(.message-bubble.own, .occupancy-meter) {
+  background: var(--workspace-topbar);
+  border-color: var(--workspace-border);
+}
+.dashboard-layout .occupancy-meter span {
+  background: var(--workspace-accent);
+}
+.dashboard-layout .assistant-message:not(.own) {
+  background: var(--workspace-canvas);
+}
+.dashboard-layout .modal {
+  color: var(--workspace-ink);
+}
+.dashboard-layout .modal::backdrop {
+  background: color-mix(in srgb, var(--workspace-accent) 65%, transparent);
+}
+.dashboard-layout .notice:not(.notice-error):not(.notice-success) {
+  background: var(--workspace-soft);
+  border-color: var(--workspace-border);
+  color: var(--workspace-muted);
+}
+.dashboard-layout
+  :is(
+    .dashboard-footer,
+    .sidebar-explore,
+    .tabs,
+    .unit-listing,
+    .thread-heading,
+    .conversation-item,
+    .assistant-intro,
+    .assistant-compose,
+    td
+  ) {
+  border-color: var(--workspace-border);
+}
+.dashboard-layout th {
+  background: var(--workspace-soft);
+  color: var(--workspace-accent);
+}
+.dashboard-layout :is(input, select, textarea) {
+  border-color: var(--workspace-border);
+  color: var(--workspace-ink);
+  accent-color: var(--workspace-accent);
+}
+.dashboard-layout :is(input, textarea)::placeholder {
+  color: var(--workspace-muted);
+}
+.dashboard-layout :focus-visible {
+  outline-color: var(--workspace-accent);
+}
+.dashboard-layout .btn-primary {
+  background: var(--workspace-accent);
+  color: #fff;
+}
+.dashboard-layout .btn-primary:hover:not(:disabled) {
+  background: var(--workspace-hover);
+}
+.dashboard-layout :is(.btn-secondary, .btn-ghost) {
+  color: var(--workspace-accent);
+  border-color: var(--workspace-border);
+}
+.dashboard-layout .btn-secondary {
+  background: var(--workspace-surface);
+}
+.dashboard-layout :is(.btn-secondary, .btn-ghost):hover:not(:disabled) {
+  background: var(--workspace-soft);
+}
+.dashboard-layout .tabs button.active {
+  border-bottom-color: var(--workspace-accent);
+}
+.dashboard-layout ~ .companion :is(.companion-panel, .companion-chat-compose) {
+  background: var(--workspace-surface);
+  border-color: var(--workspace-border);
+  color: var(--workspace-ink);
+}
+.dashboard-layout
+  ~ .companion
+  :is(.companion-tabs, .companion-chat-messages .assistant-message.own) {
+  background: var(--workspace-soft);
+}
+.dashboard-layout
+  ~ .companion
+  :is(
+    .companion-tabs button[aria-selected="true"],
+    .companion-chat-input button,
+    .btn-primary
+  ) {
+  background: var(--workspace-accent);
+  color: #fff;
+}
+.dashboard-layout ~ .companion .companion-chat-messages .assistant-message {
+  color: var(--workspace-ink);
+}
+.dashboard-layout
+  ~ .companion
+  :is(
+    .companion-chat-messages .assistant-speaker,
+    .companion-chat-compose label
+  ) {
+  color: var(--workspace-accent);
+}
+.dashboard-layout
+  ~ .companion
+  :is(
+    .companion-chat-messages .assistant-message:not(.own),
+    .companion-chat-toolbar select
+  ) {
+  background: var(--workspace-canvas);
+  border-color: var(--workspace-border);
+}
+.dashboard-layout
+  ~ .companion
+  :is(.assistant-home, .assistant-action, .companion-chat-prompts button) {
+  background: var(--workspace-surface);
+  border-color: var(--workspace-border);
+}
+.dashboard-layout
+  ~ .companion
+  :is(
+    .companion-status,
+    .companion-eyebrow,
+    .companion-chat-welcome p,
+    .companion-chat-privacy,
+    .companion-chat-notice,
+    .assistant-home > span,
+    .assistant-home > small,
+    .assistant-action dt,
+    .assistant-action .muted
+  ) {
+  color: var(--workspace-muted);
+}
+.dashboard-layout
+  ~ .companion
+  :is(
+    .companion-panel h2,
+    .companion-chat-welcome h3,
+    .assistant-home strong,
+    .assistant-action h3
+  ) {
+  color: var(--workspace-ink);
+}
+.dashboard-layout
+  ~ .companion
+  :is(.companion-chat-input textarea, .companion-chat-toolbar select) {
+  border-color: var(--workspace-border);
+  color: var(--workspace-ink);
+}
+.dashboard-layout ~ .companion :focus-visible {
+  outline-color: var(--workspace-accent);
+}
+.dashboard-layout
+  ~ .companion
+  :is(.companion-tabs button:not([aria-selected="true"]), .btn-secondary) {
+  background: var(--workspace-surface);
+  border-color: var(--workspace-border);
+  color: var(--workspace-accent);
+}
+.dashboard-layout ~ .companion .companion-new-chat {
+  background: var(--workspace-soft);
+  border-color: var(--workspace-border);
+  color: var(--workspace-accent);
+}
+.dashboard-layout ~ .companion .companion-chat-input textarea::placeholder {
+  color: var(--workspace-muted);
+}
+.dashboard-layout .sidebar {
+  background: var(--workspace-sidebar);
+  border-right-color: var(--workspace-border);
+}
+.dashboard-layout .sidebar-caption {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--workspace-accent);
+}
+.dashboard-layout .sidebar nav a.active {
+  background: var(--workspace-accent);
+  box-shadow: none;
+}
+.dashboard-layout .sidebar nav a:not(.active):hover {
+  background: var(--workspace-soft);
+}
+.dashboard-layout .avatar {
+  background: var(--workspace-soft);
+  border-color: var(--workspace-border);
+  color: var(--workspace-accent);
+}
+.dashboard-layout .breadcrumb {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.dashboard-layout .workspace-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 6px;
+  background: var(--workspace-soft);
+  color: var(--workspace-accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 26px;
+  margin-bottom: 26px;
+  background: var(--workspace-soft);
+  border: 1px solid var(--workspace-border);
+  border-left: 4px solid var(--workspace-accent);
+  border-radius: 12px;
+}
+.profile-role-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border: 1px solid var(--workspace-border);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--workspace-accent);
+}
+.profile-account {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.profile-role-label {
+  color: var(--workspace-accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.profile-account h2 {
+  font-size: 23px;
+  font-weight: 500;
+  margin: 5px 0;
+}
+.profile-account p,
+.profile-purpose {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--workspace-muted);
+}
+.profile-purpose {
+  max-width: 240px;
+  margin-left: auto;
+  padding-left: 20px;
+  border-left: 1px solid var(--workspace-border);
+}
+.profile-page .profile-grid > .panel {
+  border-top: 3px solid var(--workspace-border);
+}
+.profile-page .btn-primary {
+  background: var(--workspace-accent);
+}
+.profile-page .btn-primary:hover:not(:disabled) {
+  background: var(--workspace-accent);
+  filter: brightness(0.9);
+}
+@media (max-width: 760px) {
+  .dashboard-layout .page-title {
+    padding: 20px;
+  }
+  .profile-identity {
+    flex-wrap: wrap;
+    padding: 20px;
+    gap: 15px;
+  }
+  .profile-account {
+    flex: 1;
+  }
+  .profile-purpose {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    padding: 14px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--workspace-border);
+  }
+}

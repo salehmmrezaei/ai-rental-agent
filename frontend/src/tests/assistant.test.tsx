@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { json, mockApi, renderApp, tenant, landlord, admin } from "./helpers";
 import type { AssistantThreadDetail, AssistantAction } from "../api/assistant";
@@ -113,6 +113,63 @@ it("sends only the current message and server thread ID; shows real listing refe
       screen.queryByText("Review your dates and confirm when ready."),
     ).not.toBeInTheDocument(),
   );
+});
+
+it("sends once on Enter and clears the textbox before the reply arrives", async () => {
+  let finish!: (response: Response) => void;
+  const response = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const current = thread();
+  const { calls } = mockApi(tenant, (path) => {
+    if (path === "/assistant/status") return json({ available: true });
+    if (path === "/assistant/threads") return json([]);
+    if (path === "/assistant/chat") return response;
+    if (path === "/assistant/threads/chat-id") return json(current);
+  });
+  renderApp("/tenant/assistant");
+  const user = userEvent.setup();
+  const input = await screen.findByLabelText("Message the assistant");
+  await waitFor(() => expect(input).toBeEnabled());
+  await user.type(input, "Find me a room{Enter}");
+  expect(input).toHaveValue("");
+  expect(input).toBeDisabled();
+  expect(
+    within(screen.getByRole("log")).getByText("Find me a room"),
+  ).toBeInTheDocument();
+  await user.keyboard("{Enter}");
+  expect(calls.filter((call) => call.path === "/assistant/chat")).toHaveLength(
+    1,
+  );
+  expect(calls.find((call) => call.path === "/assistant/chat")?.body).toEqual({
+    message: "Find me a room",
+    thread_id: null,
+  });
+  finish(json(current));
+  await screen.findByText("Review your dates and confirm when ready.");
+  expect(screen.getByLabelText("Message the assistant")).toHaveValue("");
+});
+
+it("keeps Shift+Enter newlines and composing Enter out of message submission", async () => {
+  const { calls } = mockApi(tenant, (path) =>
+    path === "/assistant/status"
+      ? json({ available: true })
+      : path === "/assistant/threads"
+        ? json([])
+        : undefined,
+  );
+  renderApp("/tenant/assistant");
+  const user = userEvent.setup();
+  const input = await screen.findByLabelText("Message the assistant");
+  await waitFor(() => expect(input).toBeEnabled());
+  await user.type(input, "Find a room");
+  await user.keyboard("{Shift>}{Enter}{/Shift}");
+  await user.type(input, "In Bologna");
+  expect(input).toHaveValue("Find a room\nIn Bologna");
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+  fireEvent.keyDown(input, { key: "Enter", keyCode: 229 });
+  expect(calls.some((call) => call.path === "/assistant/chat")).toBe(false);
+  expect(input).toHaveValue("Find a room\nIn Bologna");
 });
 
 it("requires a separate click to confirm and displays the exact proposed payload", async () => {

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AssistantThreadDetail, AssistantAction } from "../api/assistant";
 import { mockApi, renderApp, tenant, landlord, admin, json } from "./helpers";
@@ -105,6 +105,65 @@ it("opens tenant chat from any page and sends orders without navigating", async 
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Open Blu assistant" }));
   expect(screen.getByText("Action completed")).toBeInTheDocument();
+});
+
+it("sends once on Enter and clears Blu's textbox before the reply arrives", async () => {
+  let finish!: (response: Response) => void;
+  const response = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const current = thread();
+  const { calls } = mockApi(tenant, (path) => {
+    if (path === "/assistant/status") return json({ available: true });
+    if (path === "/assistant/threads") return json([]);
+    if (path === "/assistant/chat") return response;
+    if (path === `/assistant/threads/${chatId}`) return json(current);
+  });
+  renderApp("/");
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Open Blu assistant" }));
+  const input = await screen.findByLabelText("Message Blu");
+  await waitFor(() => expect(input).toBeEnabled());
+  await user.type(input, "Ask about utilities{Enter}");
+  expect(input).toHaveValue("");
+  expect(input).toBeDisabled();
+  expect(
+    within(screen.getByRole("log")).getByText("Ask about utilities"),
+  ).toBeInTheDocument();
+  await user.keyboard("{Enter}");
+  expect(calls.filter((call) => call.path === "/assistant/chat")).toHaveLength(
+    1,
+  );
+  expect(calls.find((call) => call.path === "/assistant/chat")?.body).toEqual({
+    message: "Ask about utilities",
+    thread_id: null,
+  });
+  finish(json(current));
+  await screen.findByText("I prepared your agency message. Review it first.");
+  expect(screen.getByLabelText("Message Blu")).toHaveValue("");
+});
+
+it("keeps Shift+Enter newlines and composing Enter out of Blu submissions", async () => {
+  const { calls } = mockApi(tenant, (path) =>
+    path === "/assistant/status"
+      ? json({ available: true })
+      : path === "/assistant/threads"
+        ? json([])
+        : undefined,
+  );
+  renderApp("/");
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Open Blu assistant" }));
+  const input = await screen.findByLabelText("Message Blu");
+  await waitFor(() => expect(input).toBeEnabled());
+  await user.type(input, "Find a room");
+  await user.keyboard("{Shift>}{Enter}{/Shift}");
+  await user.type(input, "In Bologna");
+  expect(input).toHaveValue("Find a room\nIn Bologna");
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+  fireEvent.keyDown(input, { key: "Enter", keyCode: 229 });
+  expect(calls.some((call) => call.path === "/assistant/chat")).toBe(false);
+  expect(input).toHaveValue("Find a room\nIn Bologna");
 });
 
 it("adds the currently viewed home's ID to a tenant's request", async () => {

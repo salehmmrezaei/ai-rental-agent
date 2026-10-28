@@ -53,18 +53,21 @@ function AssistantChat({
   const end = useRef<HTMLDivElement>(null);
   const thread = reply || history.data;
   const available = status.data?.available === true;
+  const blocked = pending || !available || history.loading || !!history.error;
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     end.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
   }, [thread?.messages.length, pending]);
 
   async function send() {
-    if (!draft.trim() || pending || !available) return;
+    if (!draft.trim() || blocked) return;
+    const submittedDraft = draft;
     const message = draft.trim();
     const request = new AbortController();
     controller.current = request;
     setPending(true);
     setSending(message);
+    setDraft("");
     setError("");
     try {
       const result = await api<AssistantThreadDetail>("/assistant/chat", {
@@ -73,13 +76,13 @@ function AssistantChat({
         body: { message, thread_id: chatId },
       });
       if (request.signal.aborted) return;
-      setDraft("");
       chats.reload();
       if (!chatId)
         navigate(`${assistantPath}?chat=${result.id}`, { replace: true });
       else setReply(result);
     } catch (cause) {
       if (!request.signal.aborted) {
+        setDraft((current) => current || submittedDraft);
         setError(
           cause instanceof Error
             ? cause.message
@@ -344,27 +347,29 @@ function AssistantChat({
               }
               maxLength={2000}
               rows={3}
-              disabled={pending || !available || !!history.error}
+              disabled={blocked}
+              aria-describedby="assistant-compose-hint"
               onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing &&
+                  event.nativeEvent.keyCode !== 229
+                ) {
                   event.preventDefault();
                   void send();
                 }
               }}
             />
             <div>
-              <small className="muted">
-                {draft.length}/2000 · Ctrl/Cmd + Enter to send
+              <small className="muted" id="assistant-compose-hint">
+                {draft.length}/2000 · Enter to send · Shift + Enter for a new
+                line
               </small>
               <Button
                 type="submit"
                 pending={pending}
-                disabled={
-                  !available ||
-                  !draft.trim() ||
-                  history.loading ||
-                  !!history.error
-                }
+                disabled={blocked || !draft.trim()}
               >
                 <Send size={16} />
                 Send message

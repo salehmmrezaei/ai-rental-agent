@@ -105,6 +105,7 @@ function UserChat({
 
   async function send() {
     if (blocked || !draft.trim()) return;
+    const submittedDraft = draft;
     const original = draft.trim();
     const message = pageContext ? `${original}\n\n${pageContext}` : original;
     if (message.length > 2000) {
@@ -118,6 +119,7 @@ function UserChat({
     setPending(true);
     onBusyChange(true);
     setSending(original);
+    setDraft("");
     setError("");
     try {
       const result = await api<AssistantThreadDetail>("/assistant/chat", {
@@ -128,10 +130,10 @@ function UserChat({
       if (request.signal.aborted) return;
       setReply(result);
       setChatId(result.id);
-      setDraft("");
       chats.reload();
     } catch (cause) {
       if (!request.signal.aborted) {
+        setDraft((current) => current || submittedDraft);
         setError(
           cause instanceof Error
             ? cause.message
@@ -359,9 +361,15 @@ function UserChat({
             value={draft}
             placeholder="What can I do for you?"
             disabled={blocked}
+            aria-describedby={`blu-message-hint-${userId}`}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing &&
+                event.nativeEvent.keyCode !== 229
+              ) {
                 event.preventDefault();
                 void send();
               }
@@ -375,6 +383,9 @@ function UserChat({
             <Send size={17} />
           </button>
         </div>
+        <p className="companion-chat-privacy" id={`blu-message-hint-${userId}`}>
+          Enter to send · Shift + Enter for a new line
+        </p>
         <p className="companion-chat-privacy">
           Uses OpenAI. Review details before confirming an action.
         </p>
