@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { AuthProvider } from "../auth/AuthProvider";
@@ -41,6 +41,81 @@ it("selects an activity and closes controls with keyboard focus restored", async
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(toggle).toHaveFocus();
+});
+
+it("moves in both selected walking directions while launcher focus is restored", async () => {
+  let now = 0;
+  let nextFrame = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+  vi.stubGlobal(
+    "Image",
+    class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    },
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    setTransform: vi.fn(),
+    clearRect: vi.fn(),
+    save: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
+    drawImage: vi.fn(),
+    restore: vi.fn(),
+  } as unknown as CanvasRenderingContext2D);
+  function advanceFrames(count: number) {
+    act(() => {
+      for (let index = 0; index < count; index++) {
+        now += 16;
+        const callbacks = [...frames.values()];
+        frames.clear();
+        callbacks.forEach((callback) => callback(now));
+      }
+    });
+  }
+  const { container } = renderPet();
+  const user = userEvent.setup();
+  const toggle = screen.getByRole("button", { name: "Open Blu assistant" });
+  const walker = container.querySelector<HTMLElement>(".companion-walker")!;
+  const travel = () =>
+    parseFloat(walker.style.getPropertyValue("--pet-travel"));
+  await waitFor(() => expect(frames.size).toBe(1));
+  await user.click(toggle);
+  await user.click(screen.getByRole("tab", { name: "Activities" }));
+  await user.click(screen.getByRole("button", { name: "Walk left" }));
+  expect(toggle).toHaveFocus();
+  const initial = travel();
+  advanceFrames(40);
+  const left = travel();
+  expect(left).toBeLessThan(initial - 1);
+  expect(walker).toHaveAttribute("data-activity", "walk-left");
+  expect(toggle).toHaveFocus();
+
+  await user.click(toggle);
+  await user.click(screen.getByRole("tab", { name: "Activities" }));
+  await user.click(screen.getByRole("button", { name: "Walk right" }));
+  advanceFrames(20);
+  expect(travel()).toBeGreaterThan(left + 1);
+  expect(walker).toHaveAttribute("data-activity", "walk-right");
+  expect(toggle).toHaveFocus();
+
+  await user.click(toggle);
+  await user.click(screen.getByRole("tab", { name: "Activities" }));
+  await user.click(screen.getByRole("button", { name: "Pause animations" }));
+  await user.keyboard("{Escape}");
+  const paused = travel();
+  advanceFrames(20);
+  expect(travel()).toBe(paused);
+  expect(walker).toHaveAttribute("data-paused", "true");
 });
 
 it("persists pause and hide preferences and allows restoring the companion", async () => {

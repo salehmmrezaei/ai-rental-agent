@@ -88,7 +88,7 @@
 }
 .companion-eyebrow {
   text-transform: uppercase;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   color: #5d7051;
   font-weight: 600;
@@ -238,9 +238,9 @@
 }
 .companion-panel {
   bottom: 88px;
-  width: 400px;
+  width: 440px;
   padding: 0;
-  max-height: min(690px, calc(100dvh - 116px));
+  max-height: min(760px, calc(100dvh - 116px));
   display: flex;
   flex-direction: column;
 }
@@ -254,7 +254,7 @@
   flex-shrink: 0;
 }
 .companion-panel h2 {
-  font-size: 22px;
+  font-size: 24px;
 }
 .companion-panel h2 span {
   color: #bf507d;
@@ -262,7 +262,7 @@
 .companion-status {
   margin: 4px 0 0;
   color: #59694f;
-  font-size: 10px;
+  font-size: 13px;
 }
 .companion-header-actions {
   display: flex;
@@ -291,7 +291,7 @@
   justify-content: center;
   gap: 7px;
   flex: 1;
-  font-size: 12px;
+  font-size: 14px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: #f5f7f0;
@@ -325,7 +325,7 @@
   color: #a4426b;
 }
 .companion-chat {
-  height: min(530px, calc(100dvh - 254px));
+  height: min(580px, calc(100dvh - 290px));
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -337,8 +337,8 @@
   padding: 12px 16px 0;
 }
 .companion-chat-toolbar select {
-  font-size: 10px;
-  min-height: 33px;
+  font-size: 14px;
+  min-height: 40px;
   padding: 7px 9px;
   flex: 1;
   min-width: 0;
@@ -346,8 +346,8 @@
 .companion-new-chat {
   display: grid;
   place-items: center;
-  width: 33px;
-  height: 33px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
   background: #f4f6ee;
   border: 1px solid #e3e8d9;
@@ -355,14 +355,14 @@
 }
 .companion-chat > .notice {
   margin: 10px 16px 0;
-  font-size: 11px;
+  font-size: 14px;
   padding: 10px;
   flex-shrink: 0;
 }
 .companion-chat > .btn {
   margin: 6px 16px 0;
-  font-size: 11px;
-  min-height: 32px;
+  font-size: 14px;
+  min-height: 40px;
 }
 .companion-chat-messages {
   flex: 1;
@@ -383,14 +383,14 @@
   margin-left: 9%;
 }
 .companion-chat-messages .assistant-speaker {
-  font-size: 10px;
+  font-size: 13px;
 }
 .companion-chat-messages .assistant-text {
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 16px;
+  line-height: 1.7;
 }
 .companion-chat-messages .assistant-homes {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -401,40 +401,49 @@
 }
 .companion-chat-messages .assistant-home > span,
 .companion-chat-messages .assistant-home > small {
-  font-size: 9px;
+  font-size: 13px;
 }
 .companion-chat-messages .assistant-home strong {
-  font-size: 11px;
+  font-size: 15px;
 }
 .companion-chat-messages .assistant-home b {
-  font-size: 11px;
+  font-size: 15px;
 }
 .companion-chat-messages .assistant-home b small {
-  font-size: 8px;
+  font-size: 12px;
 }
 .companion-chat-messages .assistant-action {
   margin-top: 12px;
   padding: 12px;
 }
 .companion-chat-messages .assistant-action h3 {
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.6;
 }
 .companion-chat-messages .assistant-action dt,
-.companion-chat-messages .assistant-action dd,
 .companion-chat-messages .assistant-action .muted {
-  font-size: 10px;
+  font-size: 13px;
+}
+.companion-chat-messages .assistant-action dd {
+  font-size: 15px;
+}
+.companion-chat-messages .assistant-action .eyebrow {
+  font-size: 12px;
 }
 .companion-chat-messages .assistant-action-buttons {
   gap: 7px;
 }
 .companion-chat-messages .assistant-action-buttons .btn {
   padding: 9px 10px;
-  font-size: 10px;
-  min-height: 36px;
+  font-size: 14px;
+  min-height: 40px;
+  white-space: normal;
+}
+.companion-chat-messages .text-link {
+  font-size: 14px;
 }
 .companion-chat-messages .loading {
-  font-size: 11px;
+  font-size: 14px;
   padding: 16px 0;
 }
 .companion-chat-welcome {
@@ -452,11 +461,11 @@
   border-radius: 16px;
 }
 .companion-chat-welcome h3 {
-  font-size: 21px;
+  font-size: 24px;
   margin: 12px 0 8px;
 }
 .companion-chat-welcome > p {
-  font-size: 12px;
+  font-size: 15px;
   color: #59694f;
   line-height: 1.7;
 }
@@ -475,8 +484,12 @@
   background: #fffffd;
   border-radius: 11px;
   padding: 10px;
-  font-size: 10px;
+  font-size: 14px;
   text-align: left;
+  overflow-wrap: anywhere;
+}
+.companion-chat-prompts button svg {
+  flex-shrink: 0;
 }
 .companion-chat-compose {
   flex-shrink: 0;
@@ -487,7 +500,7 @@
 }
 .companion-chat-compose > label {
   display: block;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 7px;
 }
@@ -499,18 +512,18 @@
 .companion-chat-input textarea {
   flex: 1;
   min-width: 0;
-  min-height: 59px;
+  min-height: 72px;
   max-height: 120px;
   padding: 9px 11px;
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.6;
   border-radius: 12px;
 }
 .companion-chat-input button {
   display: grid;
   place-items: center;
-  width: 39px;
-  height: 39px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   border: 0;
   border-radius: 12px;
@@ -520,7 +533,7 @@
 }
 .companion-chat-privacy {
   color: #59694f;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
   margin-top: 8px;
 }
@@ -529,11 +542,11 @@
   align-items: center;
   gap: 5px;
   color: #476088;
-  font-size: 9px;
+  font-size: 12px;
   margin-bottom: 8px;
 }
 .companion-chat-notice {
-  font-size: 11px;
+  font-size: 14px;
   color: #52644c;
   margin: 12px 16px 0;
 }
@@ -549,12 +562,52 @@
   margin: 10px 0;
 }
 .companion-chat-gate p {
-  font-size: 12px;
+  font-size: 15px;
   color: #59694f;
   margin-bottom: 18px;
 }
 .companion-chat-gate .btn {
-  font-size: 12px;
+  font-size: 14px;
+}
+@media (max-height: 700px) {
+  .companion-panel {
+    bottom: 80px;
+    height: calc(100dvh - 96px);
+    max-height: calc(100dvh - 96px);
+  }
+  .companion-panel > header {
+    padding: 8px 14px;
+  }
+  .companion-eyebrow,
+  .companion-status {
+    display: none;
+  }
+  .companion-tabs {
+    padding: 0 14px 8px;
+  }
+  .companion-panel > [role="tabpanel"] {
+    flex: 1;
+  }
+  .companion-chat {
+    height: 100%;
+  }
+  .companion-chat-toolbar {
+    padding: 8px 12px 0;
+  }
+  .companion-chat-compose {
+    padding: 9px 12px;
+  }
+  .companion-chat-compose > label {
+    margin-bottom: 5px;
+  }
+  .companion-chat-input textarea {
+    height: 68px;
+    min-height: 68px;
+    padding-block: 7px;
+  }
+  .companion-chat-privacy {
+    margin-top: 6px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .companion-chat-messages {

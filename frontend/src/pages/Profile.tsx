@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Building2, House, KeyRound } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { useAction } from "../hooks/useAction";
@@ -10,18 +11,57 @@ import {
   formData,
   text,
 } from "../components/ui";
+
+const profileIdentity = {
+  tenant: {
+    label: "Tenant",
+    icon: House,
+    description: "Your details for finding a home and managing your rentals.",
+    summary: "Saved homes, applications and your next chapter.",
+  },
+  landlord: {
+    label: "Landlord",
+    icon: KeyRound,
+    description: "Your details for looking after your properties and rentals.",
+    summary: "Your properties, rental history and portfolio in one place.",
+  },
+  admin: {
+    label: "Agency",
+    icon: Building2,
+    description: "Your agency account details and workspace security.",
+    summary: "Connecting tenants, landlords and homes across your agency.",
+  },
+};
+
 export function ProfilePage() {
   const auth = useAuth();
   const user = auth.user!;
   const action = useAction();
   const password = useAction();
   const navigate = useNavigate();
+  const identity = profileIdentity[user.role];
+  const RoleIcon = identity.icon;
   return (
-    <>
+    <div className="profile-page" data-role={user.role}>
       <PageTitle
-        title="Your profile"
-        description="Keep your details up to date and your account secure."
+        eyebrow="Your account"
+        title={`${identity.label} profile`}
+        description={identity.description}
       />
+      <section
+        className="profile-identity"
+        aria-label={`${identity.label} account`}
+      >
+        <span className="profile-role-icon" aria-hidden="true">
+          <RoleIcon size={28} />
+        </span>
+        <div className="profile-account">
+          <span className="profile-role-label">{identity.label} account</span>
+          <h2>{user.full_name}</h2>
+          <p>{user.email}</p>
+        </div>
+        <p className="profile-purpose">{identity.summary}</p>
+      </section>
       <div className="profile-grid">
         <section className="panel">
           <h2>Personal details</h2>
@@ -141,6 +181,6 @@ export function ProfilePage() {
           </form>
         </section>
       </div>
-    </>
+    </div>
   );
 }
