@@ -2304,6 +2304,13 @@ h3,
   padding: 16px;
   border-radius: 12px;
 }
+.assistant-home:hover {
+  border-color: #72865a;
+}
+.assistant-home:focus-visible {
+  outline: 3px solid #72865a;
+  outline-offset: 3px;
+}
 .assistant-home > span,
 .assistant-home > small {
   font-size: 14px;

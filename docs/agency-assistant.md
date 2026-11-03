@@ -18,6 +18,13 @@ identify applications, visits and conversations without needing a record ID. Das
 reports use the existing reporting services. Collection tools return six
 records per page; the agent can paginate or fetch a specific record.
 
+Listing results also appear as clickable cards showing the property, room or
+apartment, city, monthly rent, review status and availability dates. Open a card
+to review that exact listing in the private agency workspace, including listings
+that have not been published. These references come from authorized backend
+records and persist with the user's chat; the model does not generate their links.
+The assistant keeps its reply brief instead of repeating the listing catalogue.
+
 ## Supported requests
 
 | Workflow | Requests |

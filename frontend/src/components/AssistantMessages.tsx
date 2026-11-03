@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Bot, Check } from "lucide-react";
-import type { AssistantAction, AssistantMessage } from "../api/assistant";
-import { Button, day, money, time } from "./ui";
+import type {
+  AssistantAction,
+  AssistantListing,
+  AssistantMessage,
+} from "../api/assistant";
+import { Badge, Button, day, money, time } from "./ui";
 import { useAuth } from "../auth/AuthProvider";
 
 const actionDestinations: Record<string, [string, string]> = {
@@ -150,6 +154,50 @@ export function AssistantActionCard({
   );
 }
 
+function AssistantListingCard({ home }: { home: AssistantListing }) {
+  const { user } = useAuth();
+  const agency = user?.role === "admin" && !!home.status;
+  return (
+    <Link
+      to={agency ? `/admin/listings/${home.id}` : `/listings/${home.id}`}
+      className="assistant-home"
+    >
+      <span>
+        {home.city} · {home.kind === "room" ? "Private room" : "Apartment"}
+      </span>
+      <strong>{home.title}</strong>
+      <span>{home.unit_name}</span>
+      {agency && (
+        <div>
+          <Badge value={home.status!} />
+        </div>
+      )}
+      <div>
+        <b>
+          {money(home.monthly_rent)}
+          <small>/ month</small>
+        </b>
+        <ArrowUpRight size={17} aria-hidden="true" />
+      </div>
+      {agency ? (
+        <>
+          <small>
+            Available {day(home.available_from)} –{" "}
+            {home.available_until ? day(home.available_until) : "No end date"}
+          </small>
+          <span className="text-link">Review listing</span>
+        </>
+      ) : (
+        <small>
+          {home.available_now
+            ? "Available now · check your dates"
+            : "Check availability for your dates"}
+        </small>
+      )}
+    </Link>
+  );
+}
+
 export function AssistantMessageView({
   message,
   busy,
@@ -179,30 +227,7 @@ export function AssistantMessageView({
       {message.listings.length > 0 && (
         <div className="assistant-homes">
           {message.listings.map((home) => (
-            <Link
-              key={home.id}
-              to={`/listings/${home.id}`}
-              className="assistant-home"
-            >
-              <span>
-                {home.city} ·{" "}
-                {home.kind === "room" ? "Private room" : "Apartment"}
-              </span>
-              <strong>{home.title}</strong>
-              <span>{home.unit_name}</span>
-              <div>
-                <b>
-                  {money(home.monthly_rent)}
-                  <small>/ month</small>
-                </b>
-                <ArrowUpRight size={17} />
-              </div>
-              <small>
-                {home.available_now
-                  ? "Available now · check your dates"
-                  : "Check availability for your dates"}
-              </small>
-            </Link>
+            <AssistantListingCard key={home.id} home={home} />
           ))}
         </div>
       )}

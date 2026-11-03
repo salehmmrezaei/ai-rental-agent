@@ -153,6 +153,12 @@
   border-color: #9baecd;
   background: #f0f4fc;
 }
+.companion-activities button:disabled,
+.companion-auto:disabled,
+.companion-pet-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .companion-activities button > span {
   display: flex;
   justify-content: center;

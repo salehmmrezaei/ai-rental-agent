@@ -119,6 +119,13 @@ def moderate_listing(listing_id: UUID,data: Moderation,db: DB,admin: Admin):
     return service.transition_listing(db,listing_id,admin,data.status,data.review_note)
 
 
+@router.get('/admin/listings/{listing_id}',response_model=ListingRead)
+def moderation_detail(listing_id: UUID,db: DB,admin: Admin):
+    listing=db.get(Listing,listing_id)
+    if listing is None: raise ApiError(404,'not_found','Listing not found')
+    return listing
+
+
 @router.get('/listings',response_model=Page[PublicListing])
 def search_listings(filters: Annotated[Search,Query()],db: DB):
     rows,total=repo.search(db,filters)

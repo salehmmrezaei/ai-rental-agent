@@ -1,3 +1,5 @@
+import type { ListingStatus } from "./types";
+
 export interface AssistantStatus {
   available: boolean;
   message: string;
@@ -10,6 +12,9 @@ export interface AssistantListing {
   unit_name: string;
   monthly_rent: string;
   available_now: boolean;
+  status?: ListingStatus | null;
+  available_from?: string | null;
+  available_until?: string | null;
 }
 export interface AssistantAction {
   id: string;

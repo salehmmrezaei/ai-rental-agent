@@ -14,7 +14,10 @@ import {
   X,
 } from "lucide-react";
 import atlas from "../assets/blue-companion-cute-atlas.json";
+import { useAssistantBusy } from "../hooks/useAssistantActivity";
+import { useCompanionWork } from "../hooks/useCompanionWork";
 import { CompanionChat } from "./CompanionChat";
+import { drawCompanionLaptop } from "./companion-laptop";
 import {
   activities,
   movePet,
@@ -62,13 +65,17 @@ export function FloatingCompanion() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<"chat" | "activities">("chat");
-  const [thinking, setThinking] = useState(false);
+  const thinking = useAssistantBusy();
   const [mode, setMode] = useState<PetActivity | "auto">("auto");
   const [active, setActive] = useState<PetActivity>("wave");
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [engaged, setEngaged] = useState(false);
   const reducedMotion = useReducedMotion();
+  const work = useCompanionWork(
+    thinking,
+    loaded && preferences.visible && !preferences.paused && !reducedMotion,
+  );
   const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const panelId = useId();
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -79,7 +86,7 @@ export function FloatingCompanion() {
   const autoButton = useRef<HTMLButtonElement>(null);
   const chatTab = useRef<HTMLButtonElement>(null);
   const activitiesTab = useRef<HTMLButtonElement>(null);
-  const beforeThinking = useRef<PetActivity | null>(null);
+  const wasWorking = useRef(false);
   const engine = useRef({
     offset: 0,
     kind: "wave" as PetActivity,
@@ -127,6 +134,20 @@ export function FloatingCompanion() {
   }, []);
 
   useEffect(() => {
+    if (
+      (work.phase === "idle" && wasWorking.current) ||
+      (work.phase !== "idle" && !wasWorking.current)
+    ) {
+      // Finish upright, then let Blu return to its usual automatic activities.
+      engine.current.kind = "idle";
+      engine.current.started = performance.now();
+      setActive("idle");
+      setMode("auto");
+    }
+    wasWorking.current = work.phase !== "idle";
+  }, [work.phase]);
+
+  useEffect(() => {
     if (!open) return;
     if (tab === "activities") autoButton.current?.focus();
     else chatTab.current?.focus();
@@ -157,13 +178,7 @@ export function FloatingCompanion() {
     canvas.current.width = 72 * pixelRatio;
     canvas.current.height = 80 * pixelRatio;
     const state = engine.current;
-    if (thinking && beforeThinking.current === null)
-      beforeThinking.current = state.kind;
-    if (!thinking && beforeThinking.current !== null) {
-      state.kind = beforeThinking.current;
-      beforeThinking.current = null;
-    }
-    state.kind = thinking ? "read" : mode === "auto" ? state.kind : mode;
+    state.kind = mode === "auto" ? state.kind : mode;
     state.started = performance.now();
     state.offset = Math.min(state.offset, walkingLimit(window.innerWidth));
     let request = 0;
@@ -176,35 +191,54 @@ export function FloatingCompanion() {
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       context.clearRect(0, 0, 72, 80);
       context.imageSmoothingEnabled = false;
-      const config = activities[state.kind];
-      const frames = atlas.rows[config.row];
-      const frameIndex = moving
-        ? Math.floor(Math.max(0, now - state.started) / config.frameMs) %
-          frames.length
-        : 0;
-      const frame = frames[frameIndex];
-      const breathe =
-        moving && config.row !== "walk" && config.row !== "jump"
-          ? Math.sin(now / 700) * 0.8
+      const elapsed = Math.max(0, now - work.started.current);
+      function sprite(kind: PetActivity, opacity = 1, lower = 0) {
+        if (!context || !image.current || opacity <= 0) return;
+        const config = activities[kind];
+        const frames = atlas.rows[config.row];
+        const frameIndex = moving
+          ? Math.floor(Math.max(0, now - state.started) / config.frameMs) %
+            frames.length
           : 0;
-      context.save();
-      context.translate(36, 68 + breathe * 0.5);
-      context.scale(
-        state.kind === "walk-right" ? -atlas.sourceScale : atlas.sourceScale,
-        atlas.sourceScale,
-      );
-      context.drawImage(
-        image.current,
-        frame.x,
-        frame.y,
-        frame.width,
-        frame.height,
-        -frame.anchorX,
-        -frame.anchorY,
-        frame.width,
-        frame.height,
-      );
-      context.restore();
+        const frame = frames[frameIndex];
+        const breathe =
+          moving && config.row !== "walk" && config.row !== "jump"
+            ? Math.sin(now / 700) * 0.8
+            : 0;
+        context.save();
+        context.globalAlpha = opacity;
+        context.translate(36, 68 + lower + breathe * 0.5);
+        context.scale(
+          kind === "walk-right" ? -atlas.sourceScale : atlas.sourceScale,
+          atlas.sourceScale,
+        );
+        context.drawImage(
+          image.current,
+          frame.x,
+          frame.y,
+          frame.width,
+          frame.height,
+          -frame.anchorX,
+          -frame.anchorY,
+          frame.width,
+          frame.height,
+        );
+        context.restore();
+      }
+
+      if (work.phase === "idle") {
+        sprite(state.kind);
+      } else {
+        const seated =
+          work.phase === "opening"
+            ? Math.min(1, elapsed / 220)
+            : work.phase === "packing"
+              ? 1 - Math.max(0, Math.min(1, (elapsed - 650) / 250))
+              : 1;
+        sprite("idle", 1 - seated, seated * 3);
+        sprite("sit", seated);
+        drawCompanionLaptop(context, work.phase, elapsed, moving);
+      }
     }
 
     function position() {
@@ -213,7 +247,7 @@ export function FloatingCompanion() {
 
     function tick(now: number) {
       if (
-        !thinking &&
+        work.phase === "idle" &&
         state.kind === "pet" &&
         now - state.started >= activities.pet.duration
       ) {
@@ -223,7 +257,7 @@ export function FloatingCompanion() {
         setMode("auto");
       }
       // Selecting an activity restores focus to Blu; explicit walks should continue.
-      if (!open && !thinking && (!engaged || mode !== "auto")) {
+      if (!open && work.phase === "idle" && (!engaged || mode !== "auto")) {
         const next = movePet(
           state.offset,
           state.kind,
@@ -276,10 +310,14 @@ export function FloatingCompanion() {
     preferences.visible,
     reducedMotion,
     engaged,
-    thinking,
+    work.phase,
+    work.started,
   ]);
 
   function choose(activity: PetActivity | "auto") {
+    if (thinking) return;
+    wasWorking.current = false;
+    work.dismiss();
     if (activity !== "auto") {
       engine.current.kind = activity;
       setActive(activity);
@@ -295,6 +333,9 @@ export function FloatingCompanion() {
   }
 
   function pet() {
+    if (thinking) return;
+    wasWorking.current = false;
+    work.dismiss();
     engine.current.kind = "pet";
     engine.current.started = performance.now();
     setActive("pet");
@@ -338,8 +379,10 @@ export function FloatingCompanion() {
               </h2>
               <p className="companion-status">
                 {thinking
-                  ? "Finding your answer…"
-                  : "Little robot. Big helping hand."}
+                  ? "Working on your request…"
+                  : work.phase !== "idle"
+                    ? "Putting my laptop away…"
+                    : "Little robot. Big helping hand."}
               </p>
             </div>
             <div className="companion-header-actions">
@@ -347,6 +390,7 @@ export function FloatingCompanion() {
                 className="companion-pet-button"
                 aria-label="Give Blu a head pat"
                 title="Pet Blu"
+                disabled={thinking}
                 onClick={pet}
               >
                 <Heart size={17} />
@@ -415,10 +459,7 @@ export function FloatingCompanion() {
             aria-labelledby={`${panelId}-chat-tab`}
             hidden={tab !== "chat"}
           >
-            <CompanionChat
-              active={open && tab === "chat"}
-              onBusyChange={setThinking}
-            />
+            <CompanionChat active={open && tab === "chat"} />
           </div>
           <div
             id={`${panelId}-activities`}
@@ -434,6 +475,7 @@ export function FloatingCompanion() {
               ref={autoButton}
               className={`companion-auto ${mode === "auto" ? "selected" : ""}`}
               aria-pressed={mode === "auto"}
+              disabled={thinking}
               onClick={() => choose("auto")}
             >
               <Sparkles size={17} />
@@ -450,6 +492,7 @@ export function FloatingCompanion() {
                 <button
                   key={key}
                   aria-pressed={mode === key}
+                  disabled={thinking}
                   className={mode === key ? "selected" : ""}
                   onClick={() => choose(key)}
                 >
@@ -517,7 +560,14 @@ export function FloatingCompanion() {
       <div
         ref={walker}
         className="companion-walker"
-        data-activity={thinking ? "read" : active}
+        data-activity={
+          work.phase === "packing"
+            ? "packing"
+            : work.phase !== "idle"
+              ? "work"
+              : active
+        }
+        data-work-phase={work.phase}
         data-paused={preferences.paused || reducedMotion || !pageVisible}
       >
         <span className="companion-shadow" aria-hidden="true" />
@@ -529,8 +579,10 @@ export function FloatingCompanion() {
           aria-controls={open ? panelId : undefined}
           title={
             thinking
-              ? "Blu is finding your answer…"
-              : `Blu is ${activities[active].description}. Click to chat.`
+              ? "Blu is working on your request…"
+              : work.phase !== "idle"
+                ? "Blu is putting its laptop away…"
+                : `Blu is ${activities[active].description}. Click to chat.`
           }
           onPointerEnter={() => setEngaged(true)}
           onPointerLeave={() => setEngaged(false)}

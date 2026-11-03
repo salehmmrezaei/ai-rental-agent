@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api, queryString } from "../api/client";
 import type { Listing, Page, Unit, PropertyDetail } from "../api/types";
 import { useResource } from "../hooks/useResource";
 import { useAction } from "../hooks/useAction";
 import {
   Badge,
+  BackLink,
   Button,
   Empty,
   Feedback,
@@ -183,6 +184,29 @@ function ReviewCard({
     </article>
   );
 }
+export function ListingReviewPage() {
+  const { id } = useParams();
+  const resource = useResource<Listing>(`/admin/listings/${id}`);
+  return (
+    <>
+      <BackLink to="/admin/listings">All listing approvals</BackLink>
+      <PageTitle
+        title="Review listing"
+        description="Review this space and manage its publication."
+      />
+      <Resource value={resource}>
+        {(listing) => (
+          <ReviewCard
+            key={listing.id}
+            listing={listing}
+            onUpdate={resource.reload}
+          />
+        )}
+      </Resource>
+    </>
+  );
+}
+
 export function ListingApprovalsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("submitted");

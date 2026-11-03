@@ -19,7 +19,10 @@ import { PropertiesPage } from "./pages/Properties";
 import { PropertyEditorPage } from "./pages/PropertyEditor";
 import { PropertyManagePage } from "./pages/PropertyManage";
 import { OccupancyPage } from "./pages/Occupancy";
-import { ListingApprovalsPage } from "./pages/ListingApprovals";
+import {
+  ListingApprovalsPage,
+  ListingReviewPage,
+} from "./pages/ListingApprovals";
 import { UsersPage } from "./pages/Users";
 import { AssistantPage } from "./pages/Assistant";
 import { Button, Empty } from "./components/ui";
@@ -123,6 +126,7 @@ export function App() {
               element={<PropertyEditorPage />}
             />
             <Route path="listings" element={<ListingApprovalsPage />} />
+            <Route path="listings/:id" element={<ListingReviewPage />} />
             <Route path="applications" element={<ApplicationsPage />} />
             <Route path="contracts" element={<ContractsPage />} />
             <Route path="visits" element={<VisitsPage />} />
