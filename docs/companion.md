@@ -31,13 +31,21 @@ Blu stops wandering while hovered, keyboard-focused or its controls are open.
 Animation pauses in a hidden tab and respects `prefers-reduced-motion`; with
 reduced motion, activity selection changes static poses. A single animation loop
 caps drawing at 24 fps and cancels callbacks on unmount, pause or hide. While
-handling a request, Blu reads its little book. Activities themselves make no AI
-requests; the user must send a chat request to invoke the agent.
+handling a request in either the popup or dashboard assistant, Blu sits down,
+opens a tiny laptop and types until the request finishes. It then closes and
+puts away the laptop and stands before returning to automatic activities.
+Closing the popup keeps the work animation running; errors and aborted requests
+also end the work sequence. Pause and reduced motion show a static working pose
+and return directly to standing. Activities themselves make no AI requests; the
+user must send a chat request to invoke the agent.
 
 ## Source and assets
 
 - `frontend/src/components/FloatingCompanion.tsx`: rendering, controls, preferences and animation lifecycle.
 - `frontend/src/components/companion-motion.ts`: timing and walking bounds.
+- `frontend/src/components/companion-laptop.ts`: pixel-art laptop, typing hands and opening/put-away transitions drawn over the existing sprites.
+- `frontend/src/hooks/useCompanionWork.ts`: sitting, working, packing and standing lifecycle, including fast replies and motion preferences.
+- `frontend/src/hooks/useAssistantActivity.ts`: shared in-flight request tracking for popup and dashboard requests, confirmations and cancellations.
 - `frontend/src/components/FloatingCompanion.css`: fixed placement and responsive controls.
 - `frontend/public/pets/blue-companion-cute-atlas.png`: current generated RGBA atlas, 971 × 1619, ten animation rows and six frames per row. The original atlas remains preserved.
 - `frontend/src/assets/blue-companion-cute-atlas.json`: actual sprite bounds and anchors, preserving consistent placement without changing the image.
@@ -73,4 +81,4 @@ were displayed, and the restored chat remained available after a mobile reload.
 Desktop/mobile accessibility checks had no violations, no horizontal mobile
 overflow occurred and no browser runtime errors were reported.
 
-The production build and all **55 frontend tests** passed for this revision.
+The production build and all **70 frontend tests** passed for the laptop-work revision.

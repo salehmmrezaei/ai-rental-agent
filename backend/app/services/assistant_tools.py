@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
-from app.models import RentalRequest, RentalContract, Visit, Conversation, Message, SavedListing, User
+from app.models import RentalRequest, RentalContract, Visit, Conversation, Message, SavedListing, User, Listing, RentalUnit, Property
 from app.repositories import inventory as inventory_repo, operations as repo
 from app.schemas.inventory import Search
 from app.schemas.operations import ApplicationCreate, VisitCreate, SavedCreate, ConversationCreate, MessageCreate
@@ -113,7 +113,27 @@ class ToolContext:
         return self.call("get_my_rentals", read, {"tenant"})
 
     def agency_records(self, **values):
-        return self.call("get_agency_records", lambda s, u: agency_assistant.records(s, u, **values), {"admin"})
+        def read(session, user):
+            result = agency_assistant.records(session, user, **values)
+            if values.get("collection") == "listings" and result["items"]:
+                identifiers = [UUID(item["id"]) for item in result["items"]]
+                rows = session.execute(select(Listing, RentalUnit, Property).select_from(Listing)
+                    .join(RentalUnit, RentalUnit.id == Listing.rental_unit_id)
+                    .join(Property, Property.id == RentalUnit.property_id)
+                    .where(Listing.id.in_(identifiers))).all()
+                references = {str(listing.id): {
+                    "id": str(listing.id), "title": prop.title, "city": prop.city,
+                    "kind": unit.kind, "unit_name": unit.name, "monthly_rent": str(unit.monthly_rent),
+                    "status": listing.status, "available_from": listing.available_from.isoformat(),
+                    "available_until": listing.available_until.isoformat() if listing.available_until else None,
+                } for listing, unit, prop in rows}
+                # Preserve the tool's ordering and derive private links only from authorized database rows.
+                for identifier in identifiers:
+                    key = str(identifier)
+                    if len(self.listings) < 8 or key in self.listings:
+                        self.listings[key] = references[key]
+            return result
+        return self.call("get_agency_records", read, {"admin"})
 
     def agency_report(self, **values):
         return self.call("get_agency_report", lambda s, u: agency_assistant.report(s, u, **values), {"admin"})

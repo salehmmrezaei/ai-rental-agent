@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from app.schemas.inventory import Input, Text
+from app.schemas.inventory import Input, Text, ListingStatus
 
 ActionKind = Literal['save_listing', 'apply', 'request_visit', 'contact_agency', 'send_message',
     'withdraw_application', 'cancel_visit', 'create_property', 'update_property', 'create_unit',
@@ -38,7 +38,10 @@ class ListingReference(BaseModel):
     kind: str
     unit_name: str
     monthly_rent: str
-    available_now: bool
+    available_now: bool = False
+    status: ListingStatus | None = None
+    available_from: date | None = None
+    available_until: date | None = None
 
 
 class ActionRead(BaseModel):

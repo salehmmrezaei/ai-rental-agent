@@ -10,6 +10,7 @@ import type {
 } from "../api/assistant";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
+import { beginAssistantRequest } from "../hooks/useAssistantActivity";
 import { AssistantMessageView } from "./AssistantMessages";
 import { Button, Feedback, Loading } from "./ui";
 
@@ -27,13 +28,11 @@ function UserChat({
   agency,
   landlord,
   active,
-  onBusyChange,
 }: {
   userId: string;
   agency: boolean;
   landlord: boolean;
   active: boolean;
-  onBusyChange: (busy: boolean) => void;
 }) {
   const location = useLocation();
   const [chatId, setChatId] = useState<string | null>(() =>
@@ -71,13 +70,7 @@ function UserChat({
     pending ||
     (!!chatId && !thread && (history.loading || !!history.error));
 
-  useEffect(
-    () => () => {
-      controller.current?.abort();
-      onBusyChange(false);
-    },
-    [onBusyChange],
-  );
+  useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     try {
       const key = `casa:blu-chat:${userId}`;
@@ -116,8 +109,8 @@ function UserChat({
     }
     const request = new AbortController();
     controller.current = request;
+    const finishActivity = beginAssistantRequest(request.signal);
     setPending(true);
-    onBusyChange(true);
     setSending(original);
     setDraft("");
     setError("");
@@ -142,9 +135,9 @@ function UserChat({
         history.reload();
       }
     } finally {
+      finishActivity();
       if (!request.signal.aborted) {
         setPending(false);
-        onBusyChange(false);
         setSending("");
       }
     }
@@ -154,8 +147,8 @@ function UserChat({
     if (pending) return;
     const request = new AbortController();
     controller.current = request;
+    const finishActivity = beginAssistantRequest(request.signal);
     setPending(true);
-    onBusyChange(true);
     setError("");
     try {
       const result = await api<AssistantAction>(
@@ -192,9 +185,9 @@ function UserChat({
         history.reload();
       }
     } finally {
+      finishActivity();
       if (!request.signal.aborted) {
         setPending(false);
-        onBusyChange(false);
       }
     }
   }
@@ -394,13 +387,7 @@ function UserChat({
   );
 }
 
-export function CompanionChat({
-  active,
-  onBusyChange,
-}: {
-  active: boolean;
-  onBusyChange: (busy: boolean) => void;
-}) {
+export function CompanionChat({ active }: { active: boolean }) {
   const { user, status, refresh, error } = useAuth();
   const location = useLocation();
   if (status === "loading") return <Loading label="Checking your account…" />;
@@ -419,7 +406,6 @@ export function CompanionChat({
         agency={user.role === "admin"}
         landlord={user.role === "landlord"}
         active={active}
-        onBusyChange={onBusyChange}
       />
     );
   return (

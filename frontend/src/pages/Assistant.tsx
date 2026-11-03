@@ -11,6 +11,7 @@ import type {
 import { AssistantMessageView } from "../components/AssistantMessages";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
+import { beginAssistantRequest } from "../hooks/useAssistantActivity";
 import {
   Button,
   Feedback,
@@ -65,6 +66,7 @@ function AssistantChat({
     const message = draft.trim();
     const request = new AbortController();
     controller.current = request;
+    const finishActivity = beginAssistantRequest(request.signal);
     setPending(true);
     setSending(message);
     setDraft("");
@@ -92,6 +94,7 @@ function AssistantChat({
         history.reload();
       }
     } finally {
+      finishActivity();
       if (!request.signal.aborted) {
         setPending(false);
         setSending("");
@@ -103,6 +106,7 @@ function AssistantChat({
     if (pending) return;
     const request = new AbortController();
     controller.current = request;
+    const finishActivity = beginAssistantRequest(request.signal);
     setPending(true);
     setError("");
     try {
@@ -140,6 +144,7 @@ function AssistantChat({
         history.reload();
       }
     } finally {
+      finishActivity();
       if (!request.signal.aborted) setPending(false);
     }
   }

@@ -2,7 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select, update
@@ -70,6 +70,55 @@ def test_agency_tools_reads_and_private_history(api, actors, inventory, engine, 
     assert tools.agency_records(collection="agents", query="Synthetic Agent")["total"] == 1
     assert tools.agency_report(kind="occupancy")["summary"]["total_units"] == 2
     assert tools.agency_records(collection="properties", status="published")["error"] == "invalid_input"
+
+
+def test_submitted_listing_cards_persist_in_tool_order_and_stay_private(api, actors, inventory, engine, model):
+    first = draft(api, inventory, actors)
+    newest = draft(api, inventory, actors, unit="room_b", available_until=None)
+    for identifier in (first, newest):
+        assert api.post(f"/api/v1/listings/{identifier}/submit", headers=actors["owner"]).status_code == 200
+    model.steps = [("get_agency_records", {"collection": "listings", "status": "submitted"}),
+                   "Open a listing card to review it."]
+    response = agency_chat(api, actors, "Show me listings waiting for agency review, newest first.")
+    assert response.status_code == 200, response.text
+    thread = response.json()
+    cards = thread["messages"][-1]["listings"]
+    assert [card["id"] for card in cards] == [newest, first]
+    assert cards[0] == {
+        "id": newest, "title": "Synthetic Bologna apartment", "city": "Bologna",
+        "kind": "room", "unit_name": "Room B", "monthly_rent": "600.00", "available_now": False,
+        "status": "submitted", "available_from": str(today()), "available_until": None,
+    }
+    assert cards[1]["available_until"] == str(today()+timedelta(days=730))
+    assert thread["messages"][-1]["actions"] == []
+    assert api.get(f"{BASE}/threads/{thread['id']}", headers=actors["admin"]).json() == thread
+    assert api.get(f"{BASE}/threads/{thread['id']}", headers=actors["tenant"]).status_code == 404
+    assert api.get(f"/api/v1/listings/{newest}").status_code == 404
+    tenant_tools = context(engine, inventory)
+    with pytest.raises(ApiError) as error:
+        tenant_tools.agency_records(collection="listings", status="submitted")
+    assert error.value.status_code == 403
+    assert tenant_tools.listings == {}
+    assert tenant_tools.search(city="Bologna")["items"] == []
+    model.steps = [("get_agency_records", {"collection": "listings", "record_id": first}),
+                   "Here is the selected listing."]
+    detail = agency_chat(api, actors, "Show the other listing", thread["id"])
+    assert detail.status_code == 200, detail.text
+    assert [card["id"] for card in detail.json()["messages"][-1]["listings"]] == [first]
+
+
+def test_private_listing_review_detail_requires_agency_role(api, actors, inventory):
+    identifier = draft(api, inventory, actors)
+    path = f"/api/v1/admin/listings/{identifier}"
+    response = api.get(path, headers=actors["admin"])
+    assert response.status_code == 200, response.text
+    assert response.json()["id"] == identifier
+    assert response.json()["rental_unit_id"] == str(inventory["room"])
+    assert response.json()["status"] == "draft"
+    assert api.get(path).status_code == 401
+    for role in ("tenant", "owner", "other_owner"):
+        assert api.get(path, headers=actors[role]).status_code == 403
+    assert api.get(f"/api/v1/admin/listings/{uuid4()}", headers=actors["admin"]).status_code == 404
 
 
 def test_role_checks_on_tools_and_confirmation(api, actors, inventory, model, engine):
