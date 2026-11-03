@@ -4,6 +4,8 @@ import { ArrowUpRight, MessageSquarePlus, Send, Sparkles } from "lucide-react";
 import { api } from "../api/client";
 import type {
   AssistantAction,
+  AssistantListingSearchContext,
+  AssistantVisitSearchContext,
   AssistantStatus,
   AssistantThread,
   AssistantThreadDetail,
@@ -50,6 +52,10 @@ function AssistantChat({
   const [pending, setPending] = useState(false);
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
+  const [listingSearchContext, setListingSearchContext] =
+    useState<AssistantListingSearchContext>();
+  const [visitSearchContext, setVisitSearchContext] =
+    useState<AssistantVisitSearchContext>();
   const controller = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const thread = reply || history.data;
@@ -64,6 +70,20 @@ function AssistantChat({
     if (!draft.trim() || blocked) return;
     const submittedDraft = draft;
     const message = draft.trim();
+    const latestSearch = thread?.messages.at(-1);
+    const visibleVisits =
+      visitSearchContext ||
+      (latestSearch?.visit_search
+        ? { message_id: latestSearch.id, page: latestSearch.visit_search.page }
+        : undefined);
+    const visibleSearch =
+      listingSearchContext ||
+      (latestSearch?.listing_search
+        ? {
+            message_id: latestSearch.id,
+            page: latestSearch.listing_search.page,
+          }
+        : undefined);
     const request = new AbortController();
     controller.current = request;
     const finishActivity = beginAssistantRequest(request.signal);
@@ -75,9 +95,25 @@ function AssistantChat({
       const result = await api<AssistantThreadDetail>("/assistant/chat", {
         method: "POST",
         signal: request.signal,
-        body: { message, thread_id: chatId },
+        body: {
+          message,
+          thread_id: chatId,
+          ...(visibleSearch && { listing_search_context: visibleSearch }),
+          ...(visibleVisits && { visit_search_context: visibleVisits }),
+        },
       });
       if (request.signal.aborted) return;
+      const latest = result.messages.at(-1);
+      if (latest?.listing_search)
+        setListingSearchContext({
+          message_id: latest.id,
+          page: latest.listing_search.page,
+        });
+      if (latest?.visit_search)
+        setVisitSearchContext({
+          message_id: latest.id,
+          page: latest.visit_search.page,
+        });
       chats.reload();
       if (!chatId)
         navigate(`${assistantPath}?chat=${result.id}`, { replace: true });
@@ -276,6 +312,9 @@ function AssistantChat({
               <AssistantMessageView
                 key={message.id}
                 message={message}
+                threadId={thread.id}
+                onListingSearchPageChange={setListingSearchContext}
+                onVisitSearchPageChange={setVisitSearchContext}
                 busy={pending}
                 onAction={(a, c) => void resolve(a, c)}
               />

@@ -1,8 +1,9 @@
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.schemas.inventory import Input, Text, ListingStatus
+from app.schemas.operations import VisitStatus
 
 ActionKind = Literal['save_listing', 'apply', 'request_visit', 'contact_agency', 'send_message',
     'withdraw_application', 'cancel_visit', 'create_property', 'update_property', 'create_unit',
@@ -10,9 +11,22 @@ ActionKind = Literal['save_listing', 'apply', 'request_visit', 'contact_agency',
     'approve_application', 'reject_application', 'update_visit', 'send_tenant_message']
 
 
+class ListingSearchContext(Input):
+    message_id: UUID
+    page: int = Field(ge=1, le=10000)
+
+
 class ChatInput(Input):
     message: Text = Field(max_length=2000)
     thread_id: UUID | None = None
+    listing_search_context: ListingSearchContext | None = None
+    visit_search_context: ListingSearchContext | None = None
+
+    @model_validator(mode="after")
+    def context_requires_thread(self):
+        if (self.listing_search_context is not None or self.visit_search_context is not None) and self.thread_id is None:
+            raise ValueError("Search context requires a conversation")
+        return self
 
 
 class Confirmation(Input):
@@ -55,11 +69,40 @@ class ActionRead(BaseModel):
     result: dict | None
 
 
+class ListingSearchRead(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    cards_only: bool
+
+
+class VisitReference(BaseModel):
+    id: UUID
+    property_title: str
+    unit_name: str
+    tenant_name: str
+    status: VisitStatus
+    requested_at: datetime
+    scheduled_at: datetime | None = None
+    duration_minutes: int
+    note: str | None = None
+
+
+class VisitSearchRead(BaseModel):
+    items: list[VisitReference]
+    page: int
+    page_size: int
+    total: int
+    cards_only: bool
+
+
 class MessageRead(BaseModel):
     id: UUID
     role: Literal['user', 'assistant']
     content: str
     listings: list[ListingReference] = Field(default_factory=list)
+    listing_search: ListingSearchRead | None = None
+    visit_search: VisitSearchRead | None = None
     actions: list[ActionRead] = Field(default_factory=list)
     created_at: datetime
 

@@ -1,13 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Bot, Check } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bot,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import type {
   AssistantAction,
   AssistantListing,
+  AssistantListingPage,
+  AssistantListingSearchContext,
   AssistantMessage,
+  AssistantVisitSearchContext,
 } from "../api/assistant";
-import { Badge, Button, day, money, time } from "./ui";
+import { api } from "../api/client";
+import { Badge, Button, Feedback, day, money, time } from "./ui";
 import { useAuth } from "../auth/AuthProvider";
+import { beginAssistantRequest } from "../hooks/useAssistantActivity";
+import { AssistantVisitResults } from "./AssistantVisitResults";
 
 const actionDestinations: Record<string, [string, string]> = {
   save_listing: ["/tenant/saved", "View saved homes"],
@@ -198,15 +210,123 @@ function AssistantListingCard({ home }: { home: AssistantListing }) {
   );
 }
 
+function AssistantListingResults({
+  message,
+  threadId,
+  busy,
+  onPageChange,
+}: {
+  message: AssistantMessage;
+  threadId?: string;
+  busy: boolean;
+  onPageChange?: (context: AssistantListingSearchContext) => void;
+}) {
+  const search = message.listing_search;
+  const [results, setResults] = useState<AssistantListingPage>(() => ({
+    items: message.listings,
+    page: search?.page || 1,
+    page_size: search?.page_size || 6,
+    total: search?.total ?? message.listings.length,
+  }));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
+  const pages = Math.max(1, Math.ceil(results.total / results.page_size));
+
+  async function changePage(page: number) {
+    if (!threadId || loading || busy || page < 1 || page > pages) return;
+    const request = new AbortController();
+    controller.current = request;
+    const finishActivity = beginAssistantRequest(request.signal);
+    setLoading(true);
+    setError("");
+    try {
+      const result = await api<AssistantListingPage>(
+        `/assistant/threads/${threadId}/messages/${message.id}/listings?page=${page}`,
+        { signal: request.signal },
+      );
+      if (request.signal.aborted) return;
+      setResults(result);
+      onPageChange?.({ message_id: message.id, page: result.page });
+    } catch (cause) {
+      if (!request.signal.aborted)
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to load these homes. Please try again.",
+        );
+    } finally {
+      finishActivity();
+      if (!request.signal.aborted) setLoading(false);
+    }
+  }
+
+  return (
+    <div className="assistant-results" aria-busy={loading}>
+      {results.items.length > 0 ? (
+        <div className="assistant-homes">
+          {results.items.map((home) => (
+            <AssistantListingCard key={home.id} home={home} />
+          ))}
+        </div>
+      ) : search ? (
+        <p className="muted assistant-results-empty">
+          {results.total === 0
+            ? "No homes match these preferences. Try a different budget or rental dates."
+            : "No homes on this page. Use Previous to see earlier results."}
+        </p>
+      ) : null}
+      <Feedback error={error} />
+      {search && threadId && (
+        <nav
+          className="assistant-results-pagination"
+          aria-label="Listing search pages"
+        >
+          <Button
+            variant="secondary"
+            disabled={busy || loading || results.page <= 1}
+            onClick={() => void changePage(Math.min(results.page - 1, pages))}
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+            Previous
+          </Button>
+          <span className="muted" role="status" aria-live="polite">
+            {loading
+              ? "Loading homes…"
+              : results.page > pages
+                ? "Results changed"
+                : `Page ${results.page} of ${pages}`}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={busy || loading || results.page >= pages}
+            onClick={() => void changePage(results.page + 1)}
+          >
+            Next
+            <ChevronRight size={16} aria-hidden="true" />
+          </Button>
+        </nav>
+      )}
+    </div>
+  );
+}
+
 export function AssistantMessageView({
   message,
   busy,
   onAction,
+  threadId,
+  onListingSearchPageChange,
+  onVisitSearchPageChange,
   assistantName = "Casa assistant",
 }: {
   message: AssistantMessage;
   busy: boolean;
   onAction: (action: AssistantAction, confirm: boolean) => void;
+  threadId?: string;
+  onListingSearchPageChange?: (context: AssistantListingSearchContext) => void;
+  onVisitSearchPageChange?: (context: AssistantVisitSearchContext) => void;
   assistantName?: string;
 }) {
   return (
@@ -223,13 +343,26 @@ export function AssistantMessageView({
           </>
         )}
       </p>
-      <p className="assistant-text">{message.content}</p>
-      {message.listings.length > 0 && (
-        <div className="assistant-homes">
-          {message.listings.map((home) => (
-            <AssistantListingCard key={home.id} home={home} />
-          ))}
-        </div>
+      {!message.listing_search?.cards_only &&
+        !message.visit_search?.cards_only && (
+          <p className="assistant-text">{message.content}</p>
+        )}
+      {(message.listings.length > 0 || message.listing_search) && (
+        <AssistantListingResults
+          message={message}
+          threadId={threadId}
+          busy={busy}
+          onPageChange={onListingSearchPageChange}
+        />
+      )}
+      {message.visit_search && (
+        <AssistantVisitResults
+          search={message.visit_search}
+          messageId={message.id}
+          threadId={threadId}
+          busy={busy}
+          onPageChange={onVisitSearchPageChange}
+        />
       )}
       {message.actions.map((action) => (
         <AssistantActionCard

@@ -1,16 +1,19 @@
 from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from app.config import get_settings
 from app.dependencies import DB, require_roles
 from app.errors import ApiError
 from app.models import User
-from app.schemas.assistant import AssistantStatus, ChatInput, Confirmation, ThreadRead, ThreadDetail, ActionRead
+from app.schemas.assistant import AssistantStatus, ChatInput, Confirmation, ThreadRead, ThreadDetail, ActionRead, ListingReference, VisitReference
+from app.schemas.inventory import Page
 from app.services import assistant as service
 from app.throttle import AuthThrottle
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 Participant = Annotated[User, Depends(require_roles("tenant", "landlord", "admin"))]
+Tenant = Annotated[User, Depends(require_roles("tenant"))]
+Agency = Annotated[User, Depends(require_roles("admin"))]
 
 
 @router.get("/status", response_model=AssistantStatus)
@@ -31,6 +34,18 @@ def threads(db: DB, user: Participant):
 @router.get("/threads/{thread_id}", response_model=ThreadDetail)
 def detail(thread_id: UUID, db: DB, user: Participant):
     return service.thread_detail(db, user, thread_id)
+
+
+@router.get("/threads/{thread_id}/messages/{message_id}/listings", response_model=Page[ListingReference])
+def listing_search_page(thread_id: UUID, message_id: UUID, db: DB, user: Tenant,
+                        page: Annotated[int, Query(ge=1, le=10000)] = 1):
+    return service.listing_search_page(db, user, thread_id, message_id, page)
+
+
+@router.get("/threads/{thread_id}/messages/{message_id}/visits", response_model=Page[VisitReference])
+def visit_search_page(thread_id: UUID, message_id: UUID, db: DB, user: Agency,
+                      page: Annotated[int, Query(ge=1, le=10000)] = 1):
+    return service.visit_search_page(db, user, thread_id, message_id, page)
 
 
 @router.post("/chat", response_model=ThreadDetail)

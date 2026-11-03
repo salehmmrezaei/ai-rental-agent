@@ -4,6 +4,8 @@ import { ArrowUpRight, MessageSquarePlus, Send, Sparkles } from "lucide-react";
 import { api } from "../api/client";
 import type {
   AssistantAction,
+  AssistantListingSearchContext,
+  AssistantVisitSearchContext,
   AssistantStatus,
   AssistantThread,
   AssistantThreadDetail,
@@ -48,6 +50,10 @@ function UserChat({
   const [pending, setPending] = useState(false);
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
+  const [listingSearchContext, setListingSearchContext] =
+    useState<AssistantListingSearchContext>();
+  const [visitSearchContext, setVisitSearchContext] =
+    useState<AssistantVisitSearchContext>();
   const controller = useRef<AbortController | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const messages = useRef<HTMLDivElement>(null);
@@ -94,12 +100,28 @@ function UserChat({
     setReply(undefined);
     setDraft("");
     setError("");
+    setListingSearchContext(undefined);
+    setVisitSearchContext(undefined);
   }
 
   async function send() {
     if (blocked || !draft.trim()) return;
     const submittedDraft = draft;
     const original = draft.trim();
+    const latestSearch = thread?.messages.at(-1);
+    const visibleVisits =
+      visitSearchContext ||
+      (latestSearch?.visit_search
+        ? { message_id: latestSearch.id, page: latestSearch.visit_search.page }
+        : undefined);
+    const visibleSearch =
+      listingSearchContext ||
+      (latestSearch?.listing_search
+        ? {
+            message_id: latestSearch.id,
+            page: latestSearch.listing_search.page,
+          }
+        : undefined);
     const message = pageContext ? `${original}\n\n${pageContext}` : original;
     if (message.length > 2000) {
       setError(
@@ -118,9 +140,25 @@ function UserChat({
       const result = await api<AssistantThreadDetail>("/assistant/chat", {
         method: "POST",
         signal: request.signal,
-        body: { message, thread_id: chatId },
+        body: {
+          message,
+          thread_id: chatId,
+          ...(visibleSearch && { listing_search_context: visibleSearch }),
+          ...(visibleVisits && { visit_search_context: visibleVisits }),
+        },
       });
       if (request.signal.aborted) return;
+      const latest = result.messages.at(-1);
+      if (latest?.listing_search)
+        setListingSearchContext({
+          message_id: latest.id,
+          page: latest.listing_search.page,
+        });
+      if (latest?.visit_search)
+        setVisitSearchContext({
+          message_id: latest.id,
+          page: latest.visit_search.page,
+        });
       setReply(result);
       setChatId(result.id);
       chats.reload();
@@ -308,6 +346,9 @@ function UserChat({
           <AssistantMessageView
             key={message.id}
             message={message}
+            threadId={thread.id}
+            onListingSearchPageChange={setListingSearchContext}
+            onVisitSearchPageChange={setVisitSearchContext}
             busy={pending}
             assistantName="Blu"
             onAction={(action, confirm) => void resolve(action, confirm)}
@@ -378,9 +419,6 @@ function UserChat({
         </div>
         <p className="companion-chat-privacy" id={`blu-message-hint-${userId}`}>
           Enter to send · Shift + Enter for a new line
-        </p>
-        <p className="companion-chat-privacy">
-          Uses OpenAI. Review details before confirming an action.
         </p>
       </form>
     </div>

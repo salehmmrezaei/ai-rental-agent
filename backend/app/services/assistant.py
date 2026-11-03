@@ -13,8 +13,12 @@ from app.config import get_settings
 from app.errors import ApiError
 from app.models import AssistantThread, AssistantMessage, AssistantAction
 from app.schemas.assistant import ActionRead, MessageRead, ThreadRead, ThreadDetail
+from app.schemas.inventory import Page, Search
+from app.schemas.assistant import ListingReference, VisitReference
 from app.services import rental_agent, transactions as tx
-from app.services.assistant_tools import ToolContext, execute_action
+from app.services.assistant_tools import ToolContext, execute_action, listing_reference, visit_reference
+from app.repositories import inventory as inventory_repo
+from app.services import inventory, agency_assistant
 from app.services.operations import now
 
 logger = logging.getLogger(__name__)
@@ -43,10 +47,37 @@ def thread_detail(session, user, thread_id):
     for action in session.scalars(select(AssistantAction).where(AssistantAction.thread_id == thread.id,
             AssistantAction.user_id == user.id).order_by(AssistantAction.created_at, AssistantAction.id)):
         actions[action.message_id].append(ActionRead.model_validate(action))
-    messages = [MessageRead(id=m.id, role=m.role, content=m.content, listings=m.listings,
+    messages = [MessageRead(id=m.id, role=m.role, content=m.content, listings=m.listings, listing_search=m.listing_search,
+                visit_search=m.visit_search,
                 actions=actions[m.id], created_at=m.created_at) for m in session.scalars(select(AssistantMessage)
                 .where(AssistantMessage.thread_id == thread.id).order_by(AssistantMessage.created_at, AssistantMessage.id))]
     return ThreadDetail(id=thread.id, title=thread.title, updated_at=thread.updated_at, messages=messages)
+
+
+def listing_search_page(session, user, thread_id, message_id, page):
+    if user.role != "tenant":
+        raise ApiError(403, "forbidden", "Tenant role required")
+    owned_thread(session, user, thread_id)
+    message = session.scalar(select(AssistantMessage).where(AssistantMessage.id == message_id,
+        AssistantMessage.thread_id == thread_id, AssistantMessage.role == "assistant"))
+    if message is None or message.listing_search is None:
+        raise ApiError(404, "not_found", "Listing search not found")
+    filters = Search(**message.listing_search["filters"], page=page, page_size=6)
+    rows, total = inventory_repo.search(session, filters)
+    items = [listing_reference(inventory.public_view(session, *row).model_dump(mode="json")) for row in rows]
+    return Page[ListingReference](items=items, page=page, page_size=6, total=total)
+
+
+def visit_search_page(session, user, thread_id, message_id, page):
+    agency_assistant.require_admin(user)
+    owned_thread(session, user, thread_id)
+    message = session.scalar(select(AssistantMessage).where(AssistantMessage.id == message_id,
+        AssistantMessage.thread_id == thread_id, AssistantMessage.role == "assistant"))
+    if message is None or message.visit_search is None:
+        raise ApiError(404, "not_found", "Visit search not found")
+    result = agency_assistant.records(session, user, **message.visit_search["filters"], page=page)
+    return Page[VisitReference](items=[visit_reference(item) for item in result["items"]],
+        page=result["page"], page_size=result["page_size"], total=result["total"])
 
 
 def trim_history(history):
@@ -65,7 +96,7 @@ def chat(db, user, data):
     if not settings.assistant_available():
         raise ApiError(503, "assistant_unconfigured", "The AI assistant is not configured yet. Your operator can enable it with an OpenAI API key.")
     actor, bind, role = tx.Actor.from_user(user), db.get_bind(), user.role
-    history, version, states = [], 0, []
+    history, version, states, search_context, visit_context = [], 0, [], None, None
     if data.thread_id:
         thread = owned_thread(db, user, data.thread_id)
         version, history = thread.version, list(thread.history)
@@ -77,13 +108,33 @@ def chat(db, user, data):
                        if key in {"id", "property_id", "rental_unit_id", "rental_request_id"}}}
                   for a in db.scalars(select(AssistantAction)
                   .where(AssistantAction.thread_id == thread.id, AssistantAction.user_id == user.id))]
+        if data.listing_search_context is not None:
+            visible_page = listing_search_page(db, user, thread.id,
+                data.listing_search_context.message_id, data.listing_search_context.page)
+            search_context = {"message_id": str(data.listing_search_context.message_id),
+                "page": visible_page.page, "listings": [
+                    {"id": str(item.id), "title": item.title, "unit_name": item.unit_name}
+                    for item in visible_page.items]}
+        if data.visit_search_context is not None:
+            visible_page = visit_search_page(db, user, thread.id,
+                data.visit_search_context.message_id, data.visit_search_context.page)
+            visit_context = {"message_id": str(data.visit_search_context.message_id),
+                "page": visible_page.page, "visits": [
+                    {"id": str(item.id), "property_title": item.property_title,
+                     "unit_name": item.unit_name, "tenant_name": item.tenant_name}
+                    for item in visible_page.items]}
     # Release the authentication/read transaction while awaiting the external model.
     db.rollback()
     context = ToolContext(bind, actor, role=role)
     history = trim_history(history + [{"role": "user", "content": data.message}])
     started = time.monotonic()
     try:
-        result = asyncio.run(rental_agent.run_agent(settings, context, history, json.dumps(states)))
+        state = json.dumps(states)
+        if search_context is not None:
+            state += "\nCurrent tenant search page (ordered visible cards, for references such as 'the first one'): " + json.dumps(search_context)
+        if visit_context is not None:
+            state += "\nCurrent agency visit page (ordered visible cards, for references such as 'schedule the first one'): " + json.dumps(visit_context)
+        result = asyncio.run(rental_agent.run_agent(settings, context, history, state))
         content = result.final_output
         if not isinstance(content, str) or not content.strip() or len(content) > 12000:
             raise ApiError(502, "assistant_empty_reply", "The assistant could not finish a reply. Please try again.")
@@ -112,8 +163,18 @@ def chat(db, user, data):
         sent_at = now()
         session.add(AssistantMessage(thread_id=thread.id, role="user", content=data.message,
                                      created_at=sent_at, listings=[]))
+        listing_search = context.listing_search
+        if listing_search is not None:
+            listing_search = {**listing_search, "cards_only": not context.proposals and not context.tool_errors
+                and all(name == "search_homes" for name in context.tool_names)}
+        visit_search = context.visit_search
+        if visit_search is not None:
+            visit_search = {**visit_search, "cards_only": not context.proposals and not context.tool_errors
+                and all(name == "get_agency_records" for name in context.tool_names)
+                and all(collection == "visits" for collection in context.agency_record_collections)}
         message = AssistantMessage(thread_id=thread.id, role="assistant", content=content.strip(),
-            listings=list(context.listings.values()), created_at=sent_at + timedelta(microseconds=1))
+            listings=context.search_listings if listing_search is not None else list(context.listings.values()),
+            listing_search=listing_search, visit_search=visit_search, created_at=sent_at + timedelta(microseconds=1))
         session.add(message)
         session.flush()
         for proposal in context.proposals:

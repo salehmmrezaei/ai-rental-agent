@@ -29,6 +29,8 @@ class AssistantMessage(Record, Base):
     role: Mapped[str] = mapped_column(String(20))
     content: Mapped[str] = mapped_column(Text)
     listings: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
+    listing_search: Mapped[dict | None] = mapped_column(JSONB)
+    visit_search: Mapped[dict | None] = mapped_column(JSONB)
     __table_args__ = (CheckConstraint("role IN ('user', 'assistant')", name="role"),)
 
 
