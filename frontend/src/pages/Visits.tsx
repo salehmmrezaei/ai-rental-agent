@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, queryString } from "../api/client";
 import type { Page, Visit } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
@@ -8,6 +8,7 @@ import { useAction } from "../hooks/useAction";
 import { AssignedAgentPicker } from "../components/UserPicker";
 import {
   Badge,
+  BackLink,
   Button,
   Empty,
   Feedback,
@@ -24,6 +25,13 @@ import {
   time,
 } from "../components/ui";
 export function VisitsPage() {
+  const [params] = useSearchParams();
+  const { user } = useAuth();
+  const visitId = user?.role === "admin" ? params.get("visit") : null;
+  return <VisitsWorkspace key={visitId || "queue"} visitId={visitId} />;
+}
+
+function VisitsWorkspace({ visitId }: { visitId: string | null }) {
   const { user } = useAuth();
   const admin = user!.role === "admin";
   const [page, setPage] = useState(1);
@@ -34,46 +42,70 @@ export function VisitsPage() {
     action: "scheduled" | "rejected" | "cancelled" | "completed";
   } | null>(null);
   const action = useAction();
-  const resource = useResource<Page<Visit>>(
-    `/visits?${queryString({ page, status, period, page_size: 20 })}`,
+  const queue = useResource<Page<Visit>>(
+    visitId
+      ? null
+      : `/visits?${queryString({ page, status, period, page_size: 20 })}`,
   );
+  const selected = useResource<Visit>(visitId ? `/visits/${visitId}` : null);
+  const resource = visitId
+    ? {
+        ...selected,
+        data: selected.data
+          ? { items: [selected.data], total: 1, page: 1, page_size: 1 }
+          : undefined,
+      }
+    : queue;
   return (
     <>
+      {visitId && <BackLink to="/admin/visits">All visit requests</BackLink>}
       <PageTitle
-        title={admin ? "Visit scheduling" : "Your property visits"}
+        title={
+          visitId
+            ? "Review visit"
+            : admin
+              ? "Visit scheduling"
+              : "Your property visits"
+        }
         description="A closer look at the places you could call home. Times are shown in Europe/Rome."
       />
-      <div className="toolbar">
-        <Select
-          label="Visit period"
-          value={period}
-          onChange={(event) => {
-            setPeriod(event.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="all">All visits</option>
-          <option value="upcoming">Upcoming visits</option>
-          <option value="past">Previous visits</option>
-        </Select>
-        <Select
-          label="Visit status"
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">All statuses</option>
-          {["requested", "scheduled", "completed", "cancelled", "rejected"].map(
-            (s) => (
+      {!visitId && (
+        <div className="toolbar">
+          <Select
+            label="Visit period"
+            value={period}
+            onChange={(event) => {
+              setPeriod(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="all">All visits</option>
+            <option value="upcoming">Upcoming visits</option>
+            <option value="past">Previous visits</option>
+          </Select>
+          <Select
+            label="Visit status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All statuses</option>
+            {[
+              "requested",
+              "scheduled",
+              "completed",
+              "cancelled",
+              "rejected",
+            ].map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
-            ),
-          )}
-        </Select>
-      </div>
+            ))}
+          </Select>
+        </div>
+      )}
       <Feedback error={change ? null : action.error} success={action.success} />
       <Resource value={resource}>
         {(data) => (
@@ -86,6 +118,9 @@ export function VisitsPage() {
                       <div>
                         <h2>{item.property_title || "Property visit"}</h2>
                         <p>{item.unit_name || "Requested home"}</p>
+                        {admin && item.tenant_name && (
+                          <p>Tenant: {item.tenant_name}</p>
+                        )}
                       </div>
                       <Badge value={item.status} />
                     </div>
@@ -238,6 +273,9 @@ export function VisitsPage() {
             <p>
               {change.item.property_title} · {change.item.unit_name}
             </p>
+            {admin && change.item.tenant_name && (
+              <p>Tenant: {change.item.tenant_name}</p>
+            )}
             {change.action === "scheduled" && (
               <>
                 <Field

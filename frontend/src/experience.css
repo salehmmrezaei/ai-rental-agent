@@ -1152,9 +1152,7 @@
   border-color: var(--workspace-border);
   color: var(--workspace-ink);
 }
-.dashboard-layout
-  ~ .companion
-  :is(.companion-tabs, .companion-chat-messages .assistant-message.own) {
+.dashboard-layout ~ .companion .companion-chat-messages .assistant-message.own {
   background: var(--workspace-soft);
 }
 .dashboard-layout

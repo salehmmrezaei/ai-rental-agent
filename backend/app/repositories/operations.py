@@ -42,7 +42,11 @@ def application_view(session,request):
 def visit_view(visit,user,session=None):
     cls=AgencyVisitRead if user.role=='admin' else VisitRead
     result=cls.model_validate(visit)
-    return result.model_copy(update=rental_context(session,visit.rental_unit_id)) if session is not None else result
+    if session is not None:
+        context=rental_context(session,visit.rental_unit_id)
+        if user.role=='admin': context['tenant_name']=session.get(User,visit.tenant_id).full_name
+        return result.model_copy(update=context)
+    return result
 
 
 def unread_query(user):

@@ -25,6 +25,14 @@ that have not been published. These references come from authorized backend
 records and persist with the user's chat; the model does not generate their links.
 The assistant keeps its reply brief instead of repeating the listing catalogue.
 
+Visit queues also return persisted clickable cards with the property, room, tenant
+name, preferred time, status and request note. Their count and Next/Previous pages
+come from the same authorized backend query, including an explicit empty state.
+Opening a card selects that exact visit in the agency scheduling workspace.
+Page buttons reload current records without an AI request; a request scheduled in
+the meantime leaves the pending queue. Each user's assistant history and pagination
+remain private, including between agency administrators.
+
 ## Supported requests
 
 | Workflow | Requests |

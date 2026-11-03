@@ -372,20 +372,61 @@ export function FloatingCompanion() {
           hidden={!open}
         >
           <header>
-            <div>
-              <span className="companion-eyebrow">Your tiny rental helper</span>
-              <h2>
-                Blu <span aria-hidden="true">♡</span>
-              </h2>
-              <p className="companion-status">
-                {thinking
-                  ? "Working on your request…"
-                  : work.phase !== "idle"
-                    ? "Putting my laptop away…"
-                    : "Little robot. Big helping hand."}
-              </p>
-            </div>
+            <span className="companion-eyebrow">Your tiny rental helper</span>
+            <h2>
+              Blu <span aria-hidden="true">♡</span>
+            </h2>
             <div className="companion-header-actions">
+              <div
+                className="companion-tabs"
+                role="tablist"
+                aria-label="Blu options"
+                onKeyDown={(event) => {
+                  if (
+                    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                      event.key,
+                    )
+                  ) {
+                    event.preventDefault();
+                    changeTab(
+                      event.key === "Home"
+                        ? "chat"
+                        : event.key === "End"
+                          ? "activities"
+                          : tab === "chat"
+                            ? "activities"
+                            : "chat",
+                    );
+                  }
+                }}
+              >
+                <button
+                  ref={chatTab}
+                  role="tab"
+                  id={`${panelId}-chat-tab`}
+                  aria-label="Chat"
+                  title="Chat"
+                  aria-selected={tab === "chat"}
+                  aria-controls={`${panelId}-chat`}
+                  tabIndex={tab === "chat" ? 0 : -1}
+                  onClick={() => changeTab("chat")}
+                >
+                  <MessageCircle size={17} aria-hidden="true" />
+                </button>
+                <button
+                  ref={activitiesTab}
+                  role="tab"
+                  id={`${panelId}-activities-tab`}
+                  aria-label="Activities"
+                  title="Activities"
+                  aria-selected={tab === "activities"}
+                  aria-controls={`${panelId}-activities`}
+                  tabIndex={tab === "activities" ? 0 : -1}
+                  onClick={() => changeTab("activities")}
+                >
+                  <Sparkles size={17} aria-hidden="true" />
+                </button>
+              </div>
               <button
                 className="companion-pet-button"
                 aria-label="Give Blu a head pat"
@@ -406,53 +447,14 @@ export function FloatingCompanion() {
                 <X size={17} />
               </button>
             </div>
+            <p className="companion-status">
+              {thinking
+                ? "Working on your request…"
+                : work.phase !== "idle"
+                  ? "Putting my laptop away…"
+                  : "Little robot. Big helping hand."}
+            </p>
           </header>
-          <div
-            className="companion-tabs"
-            role="tablist"
-            aria-label="Blu options"
-            onKeyDown={(event) => {
-              if (
-                ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-              ) {
-                event.preventDefault();
-                changeTab(
-                  event.key === "Home"
-                    ? "chat"
-                    : event.key === "End"
-                      ? "activities"
-                      : tab === "chat"
-                        ? "activities"
-                        : "chat",
-                );
-              }
-            }}
-          >
-            <button
-              ref={chatTab}
-              role="tab"
-              id={`${panelId}-chat-tab`}
-              aria-selected={tab === "chat"}
-              aria-controls={`${panelId}-chat`}
-              tabIndex={tab === "chat" ? 0 : -1}
-              onClick={() => changeTab("chat")}
-            >
-              <MessageCircle size={15} />
-              Chat
-            </button>
-            <button
-              ref={activitiesTab}
-              role="tab"
-              id={`${panelId}-activities-tab`}
-              aria-selected={tab === "activities"}
-              aria-controls={`${panelId}-activities`}
-              tabIndex={tab === "activities" ? 0 : -1}
-              onClick={() => changeTab("activities")}
-            >
-              <Sparkles size={15} />
-              Activities
-            </button>
-          </div>
           <div
             id={`${panelId}-chat`}
             role="tabpanel"

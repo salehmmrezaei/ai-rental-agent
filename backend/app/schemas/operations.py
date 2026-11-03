@@ -138,6 +138,7 @@ class VisitRead(BaseModel):
 
 class AgencyVisitRead(VisitRead):
     assigned_admin_id: UUID | None
+    tenant_name: str | None = None
 
 
 class ConversationCreate(Input):

@@ -19,6 +19,19 @@ from app.services import agency_assistant, landlord_assistant
 logger = logging.getLogger(__name__)
 
 
+def listing_reference(data):
+    return {key: data[key] for key in
+            ("id", "title", "city", "kind", "unit_name", "monthly_rent", "available_now")}
+
+
+def visit_reference(data):
+    reference = {key: data[key] for key in ("id", "property_title", "unit_name", "tenant_name",
+        "status", "requested_at", "scheduled_at", "duration_minutes", "note")}
+    if reference["note"] is not None:
+        reference["note"] = reference["note"][:1000]
+    return reference
+
+
 @dataclass
 class Proposal:
     kind: str
@@ -40,11 +53,19 @@ class ToolContext:
     role: str = "tenant"
     proposals: list[Proposal] = field(default_factory=list)
     listings: dict = field(default_factory=dict)
+    listing_search: dict | None = None
+    visit_search: dict | None = None
+    agency_record_collections: list[str] = field(default_factory=list)
+    search_listings: list = field(default_factory=list)
+    tool_names: list[str] = field(default_factory=list)
+    tool_errors: bool = False
     calls: int = 0
 
     def call(self, name, operation, roles=None):
         self.calls += 1
+        self.tool_names.append(name)
         if self.calls > 16:
+            self.tool_errors = True
             return {"error": "tool_limit", "message": "Tool limit reached. Ask a narrower question."}
         try:
             with Session(self.bind) as session:
@@ -53,11 +74,13 @@ class ToolContext:
             logger.info("assistant_tool name=%s outcome=ok", name)
             return json_value(result)
         except ApiError as exc:
+            self.tool_errors = True
             if exc.status_code in (401, 403):
                 raise
             logger.info("assistant_tool name=%s outcome=%s", name, exc.code)
             return {"error": exc.code, "message": exc.detail}
         except (ValidationError, ValueError):
+            self.tool_errors = True
             logger.info("assistant_tool name=%s outcome=invalid_input", name)
             return {"error": "invalid_input", "message": "Check the identifiers, dates, and required fields."}
 
@@ -67,15 +90,22 @@ class ToolContext:
         data["description"] = data["description"][:500]
         # References are generated from database results, never model-supplied URLs.
         if len(self.listings) < 8 or data["id"] in self.listings:
-            self.listings[data["id"]] = {k: data[k] for k in
-                ("id", "title", "city", "kind", "unit_name", "monthly_rent", "available_now")}
+            self.listings[data["id"]] = listing_reference(data)
         return data
 
     def search(self, **values):
         def read(session, user):
             filters = Search(**values, page_size=6)
             rows, total = inventory_repo.search(session, filters)
-            return {"total": total, "items": [self.listing(session, row[0].id) for row in rows]}
+            items = [self.listing(session, row[0].id) for row in rows]
+            if self.role == "tenant":
+                self.search_listings = [listing_reference(item) for item in items]
+                self.listings = {item["id"]: item for item in self.search_listings}
+                self.listing_search = {
+                    "filters": filters.model_dump(mode="json", exclude={"page", "page_size"}),
+                    "page": filters.page, "page_size": filters.page_size, "total": total,
+                }
+            return {"total": total, "items": items, "page": filters.page, "page_size": filters.page_size}
         return self.call("search_homes", read)
 
     def detail(self, listing_id):
@@ -113,8 +143,15 @@ class ToolContext:
         return self.call("get_my_rentals", read, {"tenant"})
 
     def agency_records(self, **values):
+        self.agency_record_collections.append(values.get("collection"))
         def read(session, user):
             result = agency_assistant.records(session, user, **values)
+            if values.get("collection") == "visits":
+                self.visit_search = {
+                    "items": [visit_reference(item) for item in result["items"]],
+                    "filters": {key: value for key, value in values.items() if key != "page"},
+                    "page": result["page"], "page_size": result["page_size"], "total": result["total"],
+                }
             if values.get("collection") == "listings" and result["items"]:
                 identifiers = [UUID(item["id"]) for item in result["items"]]
                 rows = session.execute(select(Listing, RentalUnit, Property).select_from(Listing)

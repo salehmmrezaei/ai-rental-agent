@@ -132,6 +132,7 @@ export interface Contract {
 export interface Visit extends RentalContext {
   id: string;
   tenant_id: string;
+  tenant_name?: string | null;
   rental_unit_id: string;
   requested_at: string;
   scheduled_at: string | null;

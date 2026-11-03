@@ -20,7 +20,7 @@ the backend. Do not put it in frontend/VITE settings or commit it.
 docker compose up --build -d --wait
 ```
 
-Compose applies migrations through `0007_landlord_assistant` before starting the API. On subsequent key/config
+Compose applies migrations through `0009_assistant_visit_search` before starting the API. On subsequent key/config
 changes run `docker compose up -d --force-recreate backend`. For native startup,
 install the updated `backend/requirements.lock`, run Alembic to head and restart
 Uvicorn. No change to development accounts or seeded rental data is needed.
@@ -45,6 +45,7 @@ Responses are marked `Cache-Control: no-store`.
 | GET `/assistant/status` | Configuration status; never returns keys |
 | GET `/assistant/threads` | Up to 20 recent user-owned chats |
 | GET `/assistant/threads/{id}` | Saved messages, references and action states |
+| GET `/assistant/threads/{id}/messages/{message_id}/listings?page=2` | Tenant-owned search results for the original filters, six cards per page |
 | POST `/assistant/chat` | `{message, thread_id?}`; starts/continues a server-owned chat |
 | POST `/assistant/actions/{id}/confirm` | Requires exactly the explicit boolean `{confirmed: true}` |
 | POST `/assistant/actions/{id}/cancel` | Dismisses a pending proposal |
@@ -60,6 +61,22 @@ are bounded and use existing scoped repositories/serializers. Message excerpts
 are limited to 2,000 characters and marked when truncated. Profile emails,
 password hashes, other tenants' records and landlord/private moderation data are
 excluded from tool output. Tools never mark messages as read.
+
+Pure tenant search replies display clickable listing cards with Previous and
+Next buttons rather than a repeated text catalogue. Each search stores its
+validated filters and paging metadata on the assistant message. Page navigation
+queries current published inventory using those same filters, full rental dates
+and sorting; it does not call the model or create another chat message. Other
+assistant replies, explanations and action review cards remain visible.
+Empty searches show an empty result state. Older messages without stored search
+metadata retain their existing presentation.
+
+After navigating results, the client may include
+`listing_search_context: {message_id, page}` with a follow-up chat request. The
+server verifies the message belongs to the same authenticated tenant and thread,
+resolves the page again and supplies the ordered card identifiers privately to
+the model. Clients cannot supply search filters or listing identities through
+this context. The displayed user message remains unchanged.
 
 Preparation tools can draft seven actions: save a home, apply, request a visit,
 start an agency conversation, send a message in an owned conversation, withdraw

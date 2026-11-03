@@ -8,7 +8,9 @@ mode. The heart button in the popup also pets Blu.
 
 Click Blu to open **Chat**. Signed-in tenants, landlords and agency admins can give requests directly
 from any page, see live listing cards and review/confirm proposed actions inside
-the popup. They do not need to visit the dashboard assistant. **Activities** keeps
+the popup. They do not need to visit the dashboard assistant. Small round Chat and
+Activities icon buttons sit beside the heart in the header, leaving the remaining
+window height for the conversation. **Activities** keeps
 all animation choices, pause/resume and hide controls. The sparkle button restores
 a hidden pet. Pause/hide preferences persist in browser storage.
 
@@ -17,7 +19,7 @@ card components as the full dashboard assistant. Each mutation still requires an
 explicit confirmation click. Visitors see a sign-in link. Landlords receive
 [owner-scoped tools](landlord-assistant.md); agency admins receive
 [agency tools](agency-assistant.md). API
-keys stay on the backend. The popup explains that chat uses OpenAI.
+keys stay on the backend.
 
 The selected chat ID is stored per user in session storage; text/drafts stay in
 component memory and persisted server history. Closing/reopening the popup keeps
