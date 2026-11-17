@@ -339,6 +339,21 @@ OPENAI_MODEL=gpt-5.4-mini
 ASSISTANT_ENABLED=true
 ```
 
+Restrict the local secrets file to your account:
+
+```sh
+chmod 600 .env
+git check-ignore .env
+```
+
+The root `.env` stays outside the frontend directory and its Docker mount. The
+backend loads the key as a masked secret and uses it only for server-side OpenAI
+requests. Never put the key in `frontend/.env`, any `VITE_` variable, browser code,
+or a committed example file. Avoid sharing `docker compose config` output or
+container environment dumps, which can include resolved credentials. In production,
+inject `OPENAI_API_KEY` through the hosting platform's secret store. Revoke and
+replace any key shared in a chat, screenshot, log, or source control.
+
 Landlords can open **AI assistant** at `/landlord/assistant` or use the Blu
 companion. The agent manages their own properties, rooms/apartments, rent,
 deposits, amenities and draft listing availability; submits or withdraws eligible
