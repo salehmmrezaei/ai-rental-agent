@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { ArrowUpRight, Menu, X, House } from "lucide-react";
 import { useAuth, dashboardPath } from "../auth/AuthProvider";
+import { useDemo } from "../demo/context";
+import { DemoBanner } from "../demo/DemoBanner";
 export function Brand() {
   return (
     <Link className="brand" to="/" aria-label="Casa homepage">
@@ -14,9 +16,11 @@ export function Brand() {
 }
 export function PublicLayout() {
   const { user } = useAuth();
+  const demo = useDemo();
   const [open, setOpen] = useState(false);
   return (
     <div className="public-layout">
+      <DemoBanner />
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -37,7 +41,9 @@ export function PublicLayout() {
             onClick={() => setOpen(false)}
           >
             <NavLink to="/listings">Find a home</NavLink>
-            <NavLink to="/register?role=landlord">For landlords</NavLink>
+            <NavLink to={demo.enabled ? "/login" : "/register?role=landlord"}>
+              {demo.enabled ? "Explore workspaces" : "For landlords"}
+            </NavLink>
             {user ? (
               <Link className="btn btn-primary" to={dashboardPath(user.role)}>
                 My dashboard
@@ -45,9 +51,12 @@ export function PublicLayout() {
               </Link>
             ) : (
               <>
-                <Link to="/login">Log in</Link>
-                <Link className="btn btn-primary" to="/register">
-                  Get started
+                {!demo.enabled && <Link to="/login">Log in</Link>}
+                <Link
+                  className="btn btn-primary"
+                  to={demo.enabled ? "/login" : "/register"}
+                >
+                  {demo.enabled ? "Explore demo" : "Get started"}
                   <ArrowUpRight size={16} />
                 </Link>
               </>
@@ -65,7 +74,9 @@ export function PublicLayout() {
         </div>
         <div>
           <Link to="/listings">Explore homes</Link>
-          <Link to="/register?role=landlord">List your property</Link>
+          <Link to={demo.enabled ? "/login" : "/register?role=landlord"}>
+            {demo.enabled ? "Explore demo roles" : "List your property"}
+          </Link>
           <Link to="/login">Your account</Link>
         </div>
         <p className="footer-note">

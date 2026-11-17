@@ -1361,3 +1361,60 @@
     border-top: 1px solid var(--workspace-border);
   }
 }
+.demo-banner {
+  background: #edf0df;
+  border-bottom: 1px solid #c6ceb5;
+  color: #253d34;
+}
+.demo-banner-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 24px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.demo-banner-content > div:first-child {
+  flex: 1 1 340px;
+}
+.demo-banner p {
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 760px;
+}
+.demo-role-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.demo-role-buttons .btn {
+  min-height: 40px;
+  padding: 8px 13px;
+  font-size: 13px;
+}
+.demo-entry,
+.demo-loading {
+  padding-top: 48px;
+  padding-bottom: 60px;
+}
+.demo-entry > p,
+.demo-entry > h1 {
+  margin-bottom: 20px;
+  max-width: 760px;
+}
+.demo-workspaces {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 18px;
+  margin: 28px 0;
+}
+.demo-workspaces .panel {
+  padding: 24px;
+}
+.demo-read-only {
+  margin-bottom: 24px;
+}
+.demo-profile-fields:disabled input {
+  opacity: 0.7;
+}

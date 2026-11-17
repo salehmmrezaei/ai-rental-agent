@@ -14,7 +14,7 @@ import {
   sessionStorageKey,
   setSession,
 } from "../api/session";
-import type { TokenResponse, User } from "../api/types";
+import type { Role, TokenResponse, User } from "../api/types";
 
 interface AuthState {
   user: User | null;
@@ -22,6 +22,7 @@ interface AuthState {
   error: string | null;
   epoch: number;
   signIn: (email: string, password: string) => Promise<User>;
+  enterDemo: (role: Role) => Promise<User>;
   signOut: () => Promise<void>;
   clear: () => void;
   refresh: (silent?: boolean) => Promise<void>;
@@ -35,6 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const generation = useRef(0);
   const clear = useCallback(() => {
     generation.current++;
+    try {
+      const demoId = getSession()?.demoId;
+      if (demoId) sessionStorage.removeItem(`casa:blu-chat:demo:${demoId}`);
+    } catch {
+      /* Conversation selection is optional. */
+    }
     setSession(null);
     setUser(null);
     setStatus("ready");
@@ -80,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if ((event as CustomEvent).detail === getSession()?.token) clear();
     };
     const changed = (event: StorageEvent) => {
+      if (getSession()?.demo) return;
       if (event.key === sessionStorageKey) {
         setSession(readSession());
         void refresh();
@@ -127,9 +135,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clear();
     }
   }
+  async function enterDemo(role: Role) {
+    const run = ++generation.current;
+    const result = await api<TokenResponse>("/demo/access", {
+      method: "POST",
+      auth: false,
+      body: { role },
+    });
+    if (run !== generation.current)
+      throw new Error("Demo access interrupted. Please try again.");
+    try {
+      const demoId = getSession()?.demoId;
+      if (demoId) sessionStorage.removeItem(`casa:blu-chat:demo:${demoId}`);
+    } catch {
+      /* Conversation selection is optional. */
+    }
+    setSession({
+      token: result.access_token,
+      expiresAt: Date.now() + result.expires_in * 1000,
+      demo: true,
+      demoId: crypto.randomUUID(),
+    });
+    setUser(result.user);
+    setStatus("ready");
+    setError(null);
+    setEpoch((e) => e + 1);
+    return result.user;
+  }
   return (
     <AuthContext.Provider
-      value={{ user, status, error, epoch, signIn, signOut, clear, refresh }}
+      value={{
+        user,
+        status,
+        error,
+        epoch,
+        signIn,
+        enterDemo,
+        signOut,
+        clear,
+        refresh,
+      }}
     >
       {children}
     </AuthContext.Provider>

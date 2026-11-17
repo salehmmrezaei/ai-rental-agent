@@ -13,6 +13,7 @@ import {
   text,
 } from "../components/ui";
 import { useAction } from "../hooks/useAction";
+import { useDemo } from "../demo/context";
 export function safeNext(value: string | null, role: User["role"]) {
   if (
     value?.startsWith("/") &&
@@ -25,6 +26,7 @@ export function safeNext(value: string | null, role: User["role"]) {
 }
 export function AuthPage({ register = false }: { register?: boolean }) {
   const auth = useAuth();
+  const demo = useDemo();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const action = useAction();
@@ -32,6 +34,47 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   if (auth.user)
     return (
       <Navigate to={safeNext(params.get("next"), auth.user.role)} replace />
+    );
+  if (demo.enabled)
+    return (
+      <section className="container demo-entry">
+        <p className="eyebrow">A rental platform portfolio</p>
+        <h1>Explore Casa.</h1>
+        <p>
+          Choose Tenant, Landlord or Agency in the demo bar above. No account,
+          password or API key is needed.
+        </p>
+        <div className="demo-workspaces">
+          <article className="panel">
+            <h2>Tenant</h2>
+            <p>
+              Search homes, inspect applications and rentals, view visits and
+              explore agency conversations.
+            </p>
+          </article>
+          <article className="panel">
+            <h2>Landlord</h2>
+            <p>
+              Inspect a synthetic property portfolio, room listings, rental
+              history and occupancy reports.
+            </p>
+          </article>
+          <article className="panel">
+            <h2>Agency</h2>
+            <p>
+              Explore listing reviews, applications, contracts, visit scheduling
+              and the agency inbox.
+            </p>
+          </article>
+        </div>
+        <p>
+          Switching roles starts a fresh demo session. Shared records stay read-only. Blu’s Simulated AI Assistant answers
+          supported demonstration requests using the sample data.
+        </p>
+        <Link to="/listings" className="text-link">
+          Browse sample homes
+        </Link>
+      </section>
     );
   return (
     <div className="container auth-page">
@@ -149,7 +192,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
             />
             Show password
           </label>
-          <Button type="submit" pending={action.pending}>
+          <Button mutation type="submit" pending={action.pending}>
             {register ? "Create account" : "Sign in"}
             <ArrowRight size={17} />
           </Button>

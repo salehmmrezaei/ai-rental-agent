@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 export default function setup() {
+  if (process.env.E2E_PUBLIC_DEMO === "1") return;
   if (!process.env.E2E_DATABASE_URL)
     throw new Error(
       "Set E2E_DATABASE_URL to a migrated disposable PostgreSQL database ending in _test.",

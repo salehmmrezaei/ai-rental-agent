@@ -42,6 +42,18 @@ def create_token(user) -> tuple[str, int]:
     return jwt.encode(payload, settings.signing_key(), algorithm="HS256"), seconds
 
 
+def create_demo_token(user, session_id: str) -> tuple[str, int]:
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    seconds = settings.demo_session_minutes * 60
+    payload = {"sub": str(user.id), "iat": now, "nbf": now,
+               "exp": now + timedelta(seconds=seconds), "iss": settings.jwt_issuer,
+               "aud": settings.jwt_audience, "jti": str(uuid4()),
+               "token_version": user.token_version, "type": "demo",
+               "sid": session_id, "demo_role": user.role}
+    return jwt.encode(payload, settings.signing_key(), algorithm="HS256"), seconds
+
+
 def decode_token(token: str) -> dict:
     settings = get_settings()
     try:
@@ -51,8 +63,13 @@ def decode_token(token: str) -> dict:
                      "strict_aud": True})
         UUID(claims["sub"])
         UUID(claims["jti"])
-        if claims["type"] != "access" or type(claims["token_version"]) is not int or claims["token_version"] < 0:
+        expected = "demo" if settings.public_demo_mode else "access"
+        if claims["type"] != expected or type(claims["token_version"]) is not int or claims["token_version"] < 0:
             raise ValueError("Invalid token claims")
+        if expected == "demo":
+            UUID(claims.get("sid", ""))
+            if claims.get("demo_role") not in {"tenant", "landlord", "admin"}:
+                raise ValueError("Invalid demo role")
         return claims
     except (jwt.InvalidTokenError, ValueError, TypeError, AttributeError):
         raise unauthorized() from None

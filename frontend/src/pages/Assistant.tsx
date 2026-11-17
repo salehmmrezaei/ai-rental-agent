@@ -14,6 +14,7 @@ import { AssistantMessageView } from "../components/AssistantMessages";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
 import { beginAssistantRequest } from "../hooks/useAssistantActivity";
+import { demoPrompts, useDemo } from "../demo/context";
 import {
   Button,
   Feedback,
@@ -33,6 +34,7 @@ function AssistantChat({
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const demo = useDemo();
   const agency = user?.role === "admin";
   const landlord = user?.role === "landlord";
   const assistantPath = `/${user?.role || "tenant"}/assistant`;
@@ -60,6 +62,7 @@ function AssistantChat({
   const end = useRef<HTMLDivElement>(null);
   const thread = reply || history.data;
   const available = status.data?.available === true;
+  const simulated = demo.enabled || status.data?.mode === "simulated";
   const blocked = pending || !available || history.loading || !!history.error;
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
@@ -139,7 +142,7 @@ function AssistantChat({
   }
 
   async function resolve(action: AssistantAction, confirm: boolean) {
-    if (pending) return;
+    if (pending || demo.enabled) return;
     const request = new AbortController();
     controller.current = request;
     const finishActivity = beginAssistantRequest(request.signal);
@@ -196,18 +199,22 @@ function AssistantChat({
               : "Your rental companion"
         }
         title={
-          agency
-            ? "AI agency assistant"
-            : landlord
-              ? "AI landlord assistant"
-              : "AI rental assistant"
+          simulated
+            ? "Simulated AI Assistant"
+            : agency
+              ? "AI agency assistant"
+              : landlord
+                ? "AI landlord assistant"
+                : "AI rental assistant"
         }
         description={
-          agency
-            ? "Give the agent requests to manage properties, listings, applications, visits, and messages."
-            : landlord
-              ? "Manage your properties, prepare listings, and understand your occupancy and rental contracts."
-              : "Find a home, understand your rentals, and prepare your next step."
+          simulated
+            ? "Explore supported rental queries using fictional sample data. Responses are simulated locally without an external AI service."
+            : agency
+              ? "Give the agent requests to manage properties, listings, applications, visits, and messages."
+              : landlord
+                ? "Manage your properties, prepare listings, and understand your occupancy and rental contracts."
+                : "Find a home, understand your rentals, and prepare your next step."
         }
         action={
           <Button
@@ -270,17 +277,21 @@ function AssistantChat({
             </span>
             <div>
               <h2>
-                {agency || landlord
-                  ? "What would you like the agent to do?"
-                  : "A little help finding your place"}
+                {simulated
+                  ? "Explore the sample rental platform"
+                  : agency || landlord
+                    ? "What would you like the agent to do?"
+                    : "A little help finding your place"}
               </h2>
               <p>
-                {agency
-                  ? "Ask for property and listing changes, application decisions, visits, messages, or reports."
-                  : landlord
-                    ? "Ask me to add a property, update room prices, prepare a listing, or check occupancy and rental dates."
-                    : "Ask about budget, cities, dates, or your current rentals."}{" "}
-                You review and confirm every proposed action.
+                {simulated
+                  ? "Search homes, inspect records or ask how a rental workflow works. This bounded simulation supports the examples below and keeps shared records read-only."
+                  : agency
+                    ? "Ask for property and listing changes, application decisions, visits, messages, or reports."
+                    : landlord
+                      ? "Ask me to add a property, update room prices, prepare a listing, or check occupancy and rental dates."
+                      : "Ask about budget, cities, dates, or your current rentals."}{" "}
+                {!simulated && "You review and confirm every proposed action."}
               </p>
             </div>
           </div>
@@ -342,25 +353,27 @@ function AssistantChat({
           </div>
           {!thread && !pending && (
             <div className="assistant-suggestions">
-              {(agency
-                ? [
-                    "Show me listings waiting for approval.",
-                    "Help me create a property and its listing.",
-                    "Show pending applications and requested visits.",
-                    "Give me an occupancy report.",
-                  ]
-                : landlord
+              {(simulated
+                ? demoPrompts[user?.role || "tenant"]
+                : agency
                   ? [
-                      "Show my properties and listings that need attention.",
-                      "Help me add a property and its rooms.",
-                      "Help me update a room's rent and listing dates.",
-                      "Give me an occupancy and contracted rent report.",
+                      "Show me listings waiting for approval.",
+                      "Help me create a property and its listing.",
+                      "Show pending applications and requested visits.",
+                      "Give me an occupancy report.",
                     ]
-                  : [
-                      "Find a room in Bologna under €700 a month.",
-                      "What is the status of my applications?",
-                      "How do I arrange a property visit?",
-                    ]
+                  : landlord
+                    ? [
+                        "Show my properties and listings that need attention.",
+                        "Help me add a property and its rooms.",
+                        "Help me update a room's rent and listing dates.",
+                        "Give me an occupancy and contracted rent report.",
+                      ]
+                    : [
+                        "Find a room in Bologna under €700 a month.",
+                        "What is the status of my applications?",
+                        "How do I arrange a property visit?",
+                      ]
               ).map((prompt) => (
                 <Button
                   key={prompt}
@@ -421,9 +434,9 @@ function AssistantChat({
             </div>
           </form>
           <p className="assistant-note">
-            Your chat and the rental data needed to answer it are sent to
-            OpenAI. Avoid sharing passwords or payment details. AI replies can
-            make mistakes; check the proposed details before confirming.
+            {simulated
+              ? "Simulated AI Assistant · No external LLM requests or API key. Supported requests query synthetic rental data. Other requests receive an explanation of the demo’s limits. Chat is temporary; do not enter personal information."
+              : "Your chat and the rental data needed to answer it are sent to OpenAI. Avoid sharing passwords or payment details. AI replies can make mistakes; check the proposed details before confirming."}
           </p>
         </section>
       </div>

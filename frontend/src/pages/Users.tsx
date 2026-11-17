@@ -80,6 +80,7 @@ export function UsersPage() {
                         </td>
                         <td>
                           <Button
+                            mutation
                             aria-label={`Edit ${item.full_name}`}
                             variant="secondary"
                             onClick={() => {
@@ -154,7 +155,7 @@ export function UsersPage() {
               Email or access changes sign the user out on every device. Roles
               are managed separately by the operator.
             </p>
-            <Button type="submit" pending={action.pending}>
+            <Button mutation type="submit" pending={action.pending}>
               Save user
             </Button>
           </form>

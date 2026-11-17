@@ -13,7 +13,9 @@ import type { Page, PublicListing } from "../api/types";
 import { Resource, Empty } from "../components/ui";
 import { ListingCard } from "../components/ListingCard";
 import heroPhoto from "../assets/hero-living-v2.webp";
+import { useDemo } from "../demo/context";
 export function Home() {
+  const demo = useDemo();
   const listings = useResource<Page<PublicListing>>("/listings?page_size=3");
   return (
     <>
@@ -170,8 +172,13 @@ export function Home() {
           <h2>Your property. A new possibility.</h2>
           <p>Manage rooms, listings and occupancy with the agency’s support.</p>
         </div>
-        <Link to="/register?role=landlord" className="btn btn-light">
-          List your property
+        <Link
+          to={demo.enabled ? "/login" : "/register?role=landlord"}
+          className="btn btn-light"
+        >
+          {demo.enabled
+            ? "Explore the landlord workspace"
+            : "List your property"}
           <ArrowUpRight size={17} />
         </Link>
       </section>

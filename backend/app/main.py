@@ -5,19 +5,27 @@ from app.errors import install_error_handlers
 from app.routers import auth, health, users, inventory, operations, assistant
 from app.upload_limits import UploadRequestLimit
 from app.throttle import AuthThrottle, install_auth_throttle
+from app.public_demo import PublicDemoPolicy, router as demo_router
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
     settings.signing_key()  # Fail startup rather than issuing tokens with an absent/weak secret.
-    app = FastAPI(title="AI Rental Agent", version="0.7.0")
+    docs = settings.public_docs_enabled and not settings.public_demo_mode
+    app = FastAPI(title="AI Rental Agent", version="0.7.0",
+                  docs_url="/docs" if docs else None, redoc_url="/redoc" if docs else None,
+                  openapi_url="/openapi.json" if docs else None)
     app.state.assistant_throttle = AuthThrottle(settings.assistant_rate_limit)
+    app.state.demo_access_throttle = AuthThrottle(settings.demo_access_rate_limit)
     install_error_handlers(app)
     install_auth_throttle(app, settings.auth_rate_limit)
     app.add_middleware(UploadRequestLimit, max_bytes=settings.max_image_bytes + 65536)
+    if settings.public_demo_mode:
+        app.add_middleware(PublicDemoPolicy)
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                        allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
                        allow_headers=["Authorization", "Content-Type"])
     for router in (health.router, auth.router, users.router, inventory.router, operations.router, assistant.router):
         app.include_router(router, prefix="/api/v1")
+    app.include_router(demo_router, prefix="/api/v1")
     return app

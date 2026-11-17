@@ -6,6 +6,7 @@ import type { Conversation, Message, Page } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
 import { useAction } from "../hooks/useAction";
+import { useDemo } from "../demo/context";
 import {
   Button,
   Empty,
@@ -21,6 +22,7 @@ import {
   time,
 } from "../components/ui";
 function MessageThread({ id, onUpdate }: { id: string; onUpdate: () => void }) {
+  const demo = useDemo();
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const action = useAction();
@@ -38,6 +40,7 @@ function MessageThread({ id, onUpdate }: { id: string; onUpdate: () => void }) {
             <h2>{conversation.subject}</h2>
             {conversation.unread_count > 0 && (
               <Button
+                mutation
                 variant="secondary"
                 pending={read.pending}
                 onClick={() =>
@@ -111,12 +114,13 @@ function MessageThread({ id, onUpdate }: { id: string; onUpdate: () => void }) {
       >
         <Textarea
           label="Your reply"
+          disabled={demo.enabled}
           name="body"
           required
           maxLength={10000}
           placeholder="Write a message…"
         />
-        <Button type="submit" pending={action.pending}>
+        <Button mutation type="submit" pending={action.pending}>
           <Send size={17} />
           Send reply
         </Button>
@@ -147,6 +151,7 @@ export function MessagesPage() {
             </Button>
             {!admin && (
               <Button
+                mutation
                 onClick={() => {
                   action.reset();
                   setCompose(true);
@@ -233,7 +238,7 @@ export function MessagesPage() {
               required
               maxLength={10000}
             />
-            <Button type="submit" pending={action.pending}>
+            <Button mutation type="submit" pending={action.pending}>
               Send message
             </Button>
           </form>

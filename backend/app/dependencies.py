@@ -9,6 +9,7 @@ from app.errors import ApiError
 from app.models import User, Property, RentalUnit
 from app.repositories import users
 from app.security import decode_token, unauthorized
+from app.config import get_settings
 
 bearer = HTTPBearer(auto_error=False)
 DB = Annotated[Session, Depends(get_session)]
@@ -21,6 +22,13 @@ def current_user(db: DB, credentials: Annotated[HTTPAuthorizationCredentials | N
     user = users.by_id(db, UUID(claims["sub"]))
     if user is None or not user.is_active or user.token_version != claims["token_version"]:
         raise unauthorized()
+    if get_settings().public_demo_mode:
+        from app.public_demo import get_demo_store
+        from app.seed import record_id
+        if claims["demo_role"] != user.role or user.id != record_id(user.role):
+            raise unauthorized()
+        get_demo_store().require(claims["sid"], user.id, user.role)
+        user.demo_session_id = claims["sid"]
     return user
 
 

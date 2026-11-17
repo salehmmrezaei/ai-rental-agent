@@ -43,6 +43,7 @@ class Confirmation(Input):
 class AssistantStatus(BaseModel):
     available: bool
     message: str
+    mode: Literal["live", "simulated", "unavailable"] = "live"
 
 
 class ListingReference(BaseModel):

@@ -25,6 +25,7 @@ import { Brand } from "./PublicLayout";
 import { Button, Feedback } from "../components/ui";
 import { useAction } from "../hooks/useAction";
 import type { Role } from "../api/types";
+import { DemoBanner, DemoReadOnlyNotice } from "../demo/DemoBanner";
 type NavItem = [string, string, LucideIcon];
 const menus: Record<Role, NavItem[]> = {
   tenant: [
@@ -149,6 +150,7 @@ export function DashboardLayout() {
         />
       )}
       <div className="dashboard-main">
+        <DemoBanner />
         <header className="dashboard-topbar">
           <div className="flex items-center gap-3">
             <button
@@ -174,6 +176,7 @@ export function DashboardLayout() {
           </Link>
         </header>
         <main id="main" className="dashboard-content">
+          <DemoReadOnlyNotice />
           <Feedback error={action.error} />
           <Outlet />
         </main>

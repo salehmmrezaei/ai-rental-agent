@@ -3,6 +3,7 @@ import type { ListingStatus, VisitStatus } from "./types";
 export interface AssistantStatus {
   available: boolean;
   message: string;
+  mode?: "simulated" | "live" | "unavailable";
 }
 export interface AssistantListing {
   id: string;

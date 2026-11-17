@@ -127,6 +127,7 @@ export function ContractsPage() {
                       {admin && item.status === "confirmed" && (
                         <>
                           <Button
+                            mutation
                             variant="secondary"
                             onClick={() => {
                               action.reset();
@@ -136,6 +137,7 @@ export function ContractsPage() {
                             Amend rent
                           </Button>
                           <Button
+                            mutation
                             disabled={item.start_date > today()}
                             onClick={() => {
                               action.reset();
@@ -145,6 +147,7 @@ export function ContractsPage() {
                             Activate
                           </Button>
                           <Button
+                            mutation
                             variant="danger"
                             onClick={() => {
                               action.reset();
@@ -158,6 +161,7 @@ export function ContractsPage() {
                       {admin &&
                         ["confirmed", "active"].includes(item.status) && (
                           <Button
+                            mutation
                             variant="secondary"
                             disabled={item.end_date > today()}
                             onClick={() => {
@@ -170,6 +174,7 @@ export function ContractsPage() {
                         )}
                       {admin && item.status === "active" && (
                         <Button
+                          mutation
                           variant="danger"
                           onClick={() => {
                             action.reset();
@@ -266,6 +271,7 @@ export function ContractsPage() {
               </p>
             )}
             <Button
+              mutation
               type="submit"
               pending={action.pending}
               variant={

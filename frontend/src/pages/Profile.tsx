@@ -3,6 +3,7 @@ import { Building2, House, KeyRound } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { useAction } from "../hooks/useAction";
+import { useDemo } from "../demo/context";
 import {
   Button,
   Feedback,
@@ -34,6 +35,7 @@ const profileIdentity = {
 };
 
 export function ProfilePage() {
+  const demo = useDemo();
   const auth = useAuth();
   const user = auth.user!;
   const action = useAction();
@@ -62,7 +64,10 @@ export function ProfilePage() {
         </div>
         <p className="profile-purpose">{identity.summary}</p>
       </section>
-      <div className="profile-grid">
+      <fieldset
+        disabled={demo.enabled}
+        className="profile-grid demo-profile-fields"
+      >
         <section className="panel">
           <h2>Personal details</h2>
           <Feedback error={action.error} success={action.success} />
@@ -118,7 +123,7 @@ export function ProfilePage() {
               autoComplete="current-password"
               hint="Changing your email signs you out on all devices."
             />
-            <Button type="submit" pending={action.pending}>
+            <Button mutation type="submit" pending={action.pending}>
               Save details
             </Button>
           </form>
@@ -174,13 +179,13 @@ export function ProfilePage() {
               maxLength={128}
               autoComplete="new-password"
             />
-            <Button type="submit" pending={password.pending}>
+            <Button mutation type="submit" pending={password.pending}>
               Update password
             </Button>
             <p className="muted">You’ll sign in again after this change.</p>
           </form>
         </section>
-      </div>
+      </fieldset>
     </div>
   );
 }

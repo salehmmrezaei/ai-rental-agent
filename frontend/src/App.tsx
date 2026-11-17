@@ -27,6 +27,7 @@ import { UsersPage } from "./pages/Users";
 import { AssistantPage } from "./pages/Assistant";
 import { Button, Empty } from "./components/ui";
 import { FloatingCompanion } from "./components/FloatingCompanion";
+import { DemoProvider } from "./demo/DemoProvider";
 export class ErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -70,7 +71,7 @@ function RouteEffects() {
   }, [pathname]);
   return null;
 }
-export function App() {
+function CasaApp() {
   return (
     <ErrorBoundary>
       <RouteEffects />
@@ -157,5 +158,12 @@ export function App() {
       </Routes>
       <FloatingCompanion />
     </ErrorBoundary>
+  );
+}
+export function App() {
+  return (
+    <DemoProvider>
+      <CasaApp />
+    </DemoProvider>
   );
 }
