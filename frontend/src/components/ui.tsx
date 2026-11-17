@@ -16,21 +16,29 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Page } from "../api/types";
+import { useDemo } from "../demo/context";
 
 export function Button({
   children,
   pending,
   variant = "primary",
+  mutation = false,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   pending?: boolean;
   variant?: "primary" | "secondary" | "danger" | "ghost";
+  mutation?: boolean;
 }) {
+  const demo = useDemo();
+  const readOnly = mutation && (demo.enabled || demo.loading);
   return (
     <button
       type="button"
       {...props}
-      disabled={props.disabled || pending}
+      disabled={props.disabled || pending || readOnly}
+      title={
+        readOnly ? "Changes are disabled in this read-only demo." : props.title
+      }
       aria-busy={pending || undefined}
       className={`btn btn-${variant} ${props.className || ""}`}
     >

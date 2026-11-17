@@ -1,5 +1,57 @@
 # Architecture and development plan
 
+## Public portfolio mode
+
+`PUBLIC_DEMO_MODE=true` adds a separate, restricted access boundary while preserving
+the normal application below when disabled. Visitors enter through `POST
+/api/v1/demo/access` with a role, never a shared password. Signed `demo` tokens carry
+a random visitor-session identifier and expire after 30 minutes by default. Each
+request verifies that session, the reserved persona, current database role, active
+state and token version. Normal access tokens and demo tokens are not interchangeable.
+The frontend keeps demo tokens in tab-local session storage; normal authentication
+keeps its existing persistence and revocation behavior.
+
+An outer ASGI policy rejects every mutation except role entry, visitor logout and
+simulated chat before reading the body. This covers current and future REST write
+routes, including uploads, registration and administrator endpoints. The three
+exceptions accept only small bounded bodies. Public API reads have per-address and
+global request limits; role entry and chat have additional limits. Cheap liveness
+is exempt, while database readiness is limited. Authenticated reads retain normal
+tenant/owner/agency authorization. Each database session also checks the dedicated
+reserved synthetic footprint and bundled images, so anonymous browsing fails closed
+if the wrong database is selected. These checks cannot classify arbitrary manually
+edited text as personal data: operators must maintain a synthetic-only database.
+
+The simulated assistant routes supported phrases to existing authorized backend
+queries for published homes, complete-stay availability, tenant rental records,
+landlord inventory/contracts and agency queues/reports. It produces the same typed
+listing/visit cards as the live assistant. It generates neither SQL nor model
+requests, prepares no privileged actions, and labels every reply as simulated.
+Unsupported requests receive guided examples or workflow explanations. Public mode
+selects this implementation before consulting model configuration, even if an
+operator accidentally supplies a key. The optional live Agents SDK path remains
+available with demo mode disabled. Blu uses the existing local sprites and activity
+tracker for both implementations.
+
+Only disposable visitor sessions and conversations are writable in public mode.
+No user chat or proposed action is inserted into PostgreSQL. Session memory is
+bounded to 1,000 active sessions by default; simulated histories are independently
+bounded to 512 visitors, 768 total threads, three threads per visitor and 12 turns
+per thread. History expires within 30 minutes and may be evicted earlier under
+capacity. Session identity, persona and role scope every history lookup. Concurrent
+turns detect stale history; logout/reset cannot resurrect an in-flight conversation.
+Logout removes only its visitor's state. Restart clears all disposable state and
+preserves rental data. This design requires one backend worker and replica.
+
+Read-only shared rental workflows are deliberate: cloning the interconnected
+portfolio and its concurrency constraints for each anonymous visitor would add
+substantial storage and lifecycle complexity. Visitors can inspect real workflows
+and ask for explanations; normal mode retains full transactional writes. The
+separate [production deployment](deployment.md) uses a static React/Caddy image,
+an internal application/database network without outbound internet, migration/seed
+startup gates and persistent database/image/certificate volumes. The development
+Compose configuration remains independent.
+
 ## Application boundaries
 
 React + Vite uses TypeScript, Tailwind, React Router and a typed API client,

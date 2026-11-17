@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowUpRight, MessageSquarePlus, Send, Sparkles } from "lucide-react";
 import { api } from "../api/client";
+import { getSession } from "../api/session";
 import type {
   AssistantAction,
   AssistantListingSearchContext,
@@ -15,6 +16,7 @@ import { useResource } from "../hooks/useResource";
 import { beginAssistantRequest } from "../hooks/useAssistantActivity";
 import { AssistantMessageView } from "./AssistantMessages";
 import { Button, Feedback, Loading } from "./ui";
+import { demoPrompts, useDemo } from "../demo/context";
 
 function restoreChat(userId: string) {
   try {
@@ -37,6 +39,7 @@ function UserChat({
   active: boolean;
 }) {
   const location = useLocation();
+  const demo = useDemo();
   const [chatId, setChatId] = useState<string | null>(() =>
     restoreChat(userId),
   );
@@ -59,6 +62,7 @@ function UserChat({
   const messages = useRef<HTMLDivElement>(null);
   const thread = reply || history.data;
   const available = status.data?.available === true;
+  const simulated = demo.enabled || status.data?.mode === "simulated";
   const listingId = /^\/listings\/([a-f0-9-]{36})$/i.exec(
     location.pathname,
   )?.[1];
@@ -182,7 +186,7 @@ function UserChat({
   }
 
   async function resolve(action: AssistantAction, confirm: boolean) {
-    if (pending) return;
+    if (pending || demo.enabled) return;
     const request = new AbortController();
     controller.current = request;
     const finishActivity = beginAssistantRequest(request.signal);
@@ -232,6 +236,12 @@ function UserChat({
 
   return (
     <div className="companion-chat">
+      {simulated && (
+        <p className="companion-chat-notice">
+          Simulated AI Assistant · Sample data only. No external AI service.
+          Shared records stay read-only.
+        </p>
+      )}
       <div className="companion-chat-toolbar">
         <label className="sr-only" htmlFor={`blu-chats-${userId}`}>
           Blu conversation
@@ -302,30 +312,36 @@ function UserChat({
             <span aria-hidden="true">✦</span>
             <h3>Hi, I’m Blu!</h3>
             <p>
-              {agency
-                ? "Your agency helper. Ask me to manage properties, listings, applications, visits, messages, or reports."
-                : landlord
-                  ? "Your property helper. Ask me to manage your properties, rooms, prices, listings, or occupancy reports."
-                  : "Your tiny helper for finding a home. Tell me what you need — I’m all ears."}
+              {simulated
+                ? "Ask me to search sample homes, show rental records or explain a workflow. Try one of these supported examples."
+                : agency
+                  ? "Your agency helper. Ask me to manage properties, listings, applications, visits, messages, or reports."
+                  : landlord
+                    ? "Your property helper. Ask me to manage your properties, rooms, prices, listings, or occupancy reports."
+                    : "Your tiny helper for finding a home. Tell me what you need — I’m all ears."}
             </p>
             <div className="companion-chat-prompts">
-              {(agency
-                ? [
-                    "Show listings waiting for approval.",
-                    "Help me create a property and its listing.",
-                    "Show requested visits.",
+              {(simulated
+                ? demoPrompts[
+                    agency ? "admin" : landlord ? "landlord" : "tenant"
                   ]
-                : landlord
+                : agency
                   ? [
-                      "Show my properties and draft listings.",
-                      "Help me add a property and its rooms.",
-                      "Give me an occupancy and contracted rent report.",
+                      "Show listings waiting for approval.",
+                      "Help me create a property and its listing.",
+                      "Show requested visits.",
                     ]
-                  : [
-                      "Find rooms in Bologna under €600/month.",
-                      "Check my applications.",
-                      "Help me ask the agency about utilities.",
-                    ]
+                  : landlord
+                    ? [
+                        "Show my properties and draft listings.",
+                        "Help me add a property and its rooms.",
+                        "Give me an occupancy and contracted rent report.",
+                      ]
+                    : [
+                        "Find rooms in Bologna under €600/month.",
+                        "Check my applications.",
+                        "Help me ask the agency about utilities.",
+                      ]
               ).map((prompt) => (
                 <button
                   key={prompt}
@@ -426,7 +442,8 @@ function UserChat({
 }
 
 export function CompanionChat({ active }: { active: boolean }) {
-  const { user, status, refresh, error } = useAuth();
+  const demo = useDemo();
+  const { user, status, refresh, error, epoch } = useAuth();
   const location = useLocation();
   if (status === "loading") return <Loading label="Checking your account…" />;
   if (status === "error")
@@ -439,8 +456,10 @@ export function CompanionChat({ active }: { active: boolean }) {
   if (user)
     return (
       <UserChat
-        key={`${user.id}:${user.role}`}
-        userId={user.id}
+        key={`${user.id}:${user.role}${demo.enabled ? `:${epoch}` : ""}`}
+        userId={
+          demo.enabled ? `demo:${getSession()?.demoId || user.id}` : user.id
+        }
         agency={user.role === "admin"}
         landlord={user.role === "landlord"}
         active={active}
@@ -450,13 +469,17 @@ export function CompanionChat({ active }: { active: boolean }) {
     <div className="companion-chat-gate">
       <Sparkles size={28} />
       <h3>Your tiny rental helper</h3>
-      <p>Sign in to give Blu requests for your rental or property workspace.</p>
+      <p>
+        {demo.enabled
+          ? "Choose a demo role above to explore Blu’s Simulated AI Assistant."
+          : "Sign in to give Blu requests for your rental or property workspace."}
+      </p>
       {!user && (
         <Link
           className="btn btn-primary"
           to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
         >
-          Sign in to chat
+          {demo.enabled ? "Explore demo roles" : "Sign in to chat"}
         </Link>
       )}
     </div>

@@ -102,6 +102,7 @@ export function ApplicationsPage() {
                       )}
                       {admin && item.status === "submitted" && (
                         <Button
+                          mutation
                           variant="secondary"
                           pending={action.pending}
                           onClick={() =>
@@ -121,6 +122,7 @@ export function ApplicationsPage() {
                         (admin ? (
                           <>
                             <Button
+                              mutation
                               onClick={() => {
                                 action.reset();
                                 setDecision({ item, action: "approve" });
@@ -129,6 +131,7 @@ export function ApplicationsPage() {
                               Approve & create contract
                             </Button>
                             <Button
+                              mutation
                               variant="danger"
                               onClick={() => {
                                 action.reset();
@@ -140,6 +143,7 @@ export function ApplicationsPage() {
                           </>
                         ) : (
                           <Button
+                            mutation
                             variant="secondary"
                             onClick={() => {
                               action.reset();
@@ -256,6 +260,7 @@ export function ApplicationsPage() {
               </p>
             )}
             <Button
+              mutation
               type="submit"
               pending={action.pending}
               variant={decision.action === "reject" ? "danger" : "primary"}

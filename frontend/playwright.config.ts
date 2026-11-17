@@ -1,6 +1,10 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
+  testMatch:
+    process.env.E2E_PUBLIC_DEMO === "1"
+      ? "**/public-demo.spec.ts"
+      : "**/rental.spec.ts",
   globalSetup: "./e2e/global-setup.ts",
   workers: 1,
   retries: 0,

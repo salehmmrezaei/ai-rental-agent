@@ -89,7 +89,13 @@ export function ListingDetailPage() {
                 </p>
                 <h1>{listing.title}</h1>
                 {user?.role === "tenant" && (
-                  <Link className="text-link" to={`/tenant/assistant?listing=${listing.id}`}>Ask the AI assistant<ArrowRight size={15} /></Link>
+                  <Link
+                    className="text-link"
+                    to={`/tenant/assistant?listing=${listing.id}`}
+                  >
+                    Ask the AI assistant
+                    <ArrowRight size={15} />
+                  </Link>
                 )}
                 <p className="location">
                   <MapPin size={17} />
@@ -103,6 +109,7 @@ export function ListingDetailPage() {
               </div>
               {(!user || user.role === "tenant") && (
                 <Button
+                  mutation
                   variant="secondary"
                   pending={save.pending}
                   disabled={saved}
@@ -182,6 +189,7 @@ export function ListingDetailPage() {
                   your private workspace.
                 </p>
                 <Button
+                  mutation
                   variant="secondary"
                   onClick={() => tenantAction("message")}
                   disabled={!!user && user.role !== "tenant"}
@@ -264,6 +272,7 @@ export function ListingDetailPage() {
                 {!user || user.role === "tenant" ? (
                   <>
                     <Button
+                      mutation
                       onClick={() => tenantAction("apply")}
                       disabled={
                         !start ||
@@ -276,6 +285,7 @@ export function ListingDetailPage() {
                       <ArrowRight size={16} />
                     </Button>
                     <Button
+                      mutation
                       variant="ghost"
                       onClick={() => tenantAction("visit")}
                     >
@@ -386,7 +396,7 @@ export function ListingDetailPage() {
                     required={modal === "message"}
                     maxLength={modal === "message" ? 9000 : 2000}
                   />
-                  <Button type="submit" pending={action.pending}>
+                  <Button mutation type="submit" pending={action.pending}>
                     {modal === "apply"
                       ? "Submit application"
                       : modal === "visit"

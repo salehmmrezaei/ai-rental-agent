@@ -17,6 +17,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
 import type { Statistics } from "../api/types";
 import { Resource, PageTitle, money } from "../components/ui";
+import { useDemo } from "../demo/context";
 const labels: Record<string, string> = {
   pending_applications: "Pending applications",
   current_rentals: "Current rentals",
@@ -32,6 +33,7 @@ const labels: Record<string, string> = {
   requested_visits: "Visit requests",
 };
 export function OverviewPage() {
+  const demo = useDemo();
   const { user } = useAuth();
   const data = useResource<Statistics>("/dashboard/statistics");
   const role = user!.role;
@@ -145,14 +147,18 @@ export function OverviewPage() {
             className="btn btn-primary"
             to={
               role === "landlord"
-                ? "/landlord/properties/new"
+                ? demo.enabled
+                  ? "/landlord/properties"
+                  : "/landlord/properties/new"
                 : role === "admin"
                   ? "/admin/listings"
                   : "/listings"
             }
           >
             {role === "landlord"
-              ? "Add property"
+              ? demo.enabled
+                ? "Explore properties"
+                : "Add property"
               : role === "admin"
                 ? "Review listings"
                 : "Explore homes"}

@@ -22,8 +22,17 @@ class Settings(BaseSettings):
     assistant_timeout_seconds: int = Field(default=60, ge=5, le=120)
     assistant_max_turns: int = Field(default=6, ge=2, le=10)
     assistant_rate_limit: int = Field(default=10, ge=1, le=100)
+    public_demo_mode: bool = False
+    demo_session_minutes: int = Field(default=30, ge=5, le=60)
+    demo_max_sessions: int = Field(default=1000, ge=10, le=5000)
+    demo_access_rate_limit: int = Field(default=20, ge=1, le=1000)
+    demo_request_rate_limit: int = Field(default=240, ge=30, le=5000)
+    demo_global_rate_limit: int = Field(default=1200, ge=60, le=20000)
+    public_docs_enabled: bool = True
 
     def assistant_available(self) -> bool:
+        if self.public_demo_mode:
+            return True  # Deterministic simulator; never consult a provider key.
         key = self.openai_api_key.get_secret_value().strip() if self.openai_api_key else ""
         return self.assistant_enabled and bool(key) and not key.startswith("replace-")
 
