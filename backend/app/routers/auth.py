@@ -3,6 +3,7 @@ from app.dependencies import DB, CurrentUser
 from app.schemas.auth import Register, Login, TokenResponse, UserProfile
 from app.security import create_token
 from app.services import auth
+from app.config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -24,5 +25,9 @@ def login(data: Login, db: DB, response: Response):
 @router.post("/logout", status_code=204)
 def logout(db: DB, user: CurrentUser):
     """Revoke all of the authenticated user's access tokens across devices."""
-    auth.logout(db, user)
+    if get_settings().public_demo_mode:
+        from app.public_demo import get_demo_store
+        get_demo_store().discard(user.demo_session_id)
+    else:
+        auth.logout(db, user)
     return Response(status_code=204)

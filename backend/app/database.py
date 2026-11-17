@@ -11,4 +11,9 @@ def get_engine():
 
 def get_session():
     with Session(get_engine()) as session:
+        if get_settings().public_demo_mode:
+            # Check anonymous browsing as well as role entry: an accidentally
+            # selected real-user database must never become public inventory.
+            from app.public_demo import validate_demo_dataset
+            validate_demo_dataset(session)
         yield session

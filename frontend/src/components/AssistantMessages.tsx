@@ -141,6 +141,7 @@ export function AssistantActionCard({
           </p>
           <div className="assistant-action-buttons">
             <Button
+              mutation
               disabled={busy || expired}
               onClick={() => resolve(action, true)}
             >
@@ -148,6 +149,7 @@ export function AssistantActionCard({
               Confirm action
             </Button>
             <Button
+              mutation
               variant="secondary"
               disabled={busy}
               onClick={() => resolve(action, false)}

@@ -149,6 +149,7 @@ function VisitsWorkspace({ visitId }: { visitId: string | null }) {
                       {admin &&
                         ["requested", "scheduled"].includes(item.status) && (
                           <Button
+                            mutation
                             onClick={() => {
                               action.reset();
                               setChange({ item, action: "scheduled" });
@@ -161,6 +162,7 @@ function VisitsWorkspace({ visitId }: { visitId: string | null }) {
                         )}
                       {admin && item.status === "requested" && (
                         <Button
+                          mutation
                           variant="danger"
                           onClick={() => {
                             action.reset();
@@ -172,6 +174,7 @@ function VisitsWorkspace({ visitId }: { visitId: string | null }) {
                       )}
                       {admin && item.status === "scheduled" && (
                         <Button
+                          mutation
                           variant="secondary"
                           disabled={
                             !item.scheduled_end_at ||
@@ -188,6 +191,7 @@ function VisitsWorkspace({ visitId }: { visitId: string | null }) {
                       )}
                       {["requested", "scheduled"].includes(item.status) && (
                         <Button
+                          mutation
                           variant="secondary"
                           onClick={() => {
                             action.reset();
@@ -320,6 +324,7 @@ function VisitsWorkspace({ visitId }: { visitId: string | null }) {
               </p>
             )}
             <Button
+              mutation
               type="submit"
               pending={action.pending}
               variant={change.action === "rejected" ? "danger" : "primary"}

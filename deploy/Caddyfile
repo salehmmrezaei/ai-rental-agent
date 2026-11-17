@@ -1,0 +1,67 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 15s
+			write 30s
+			idle 60s
+		}
+	}
+}
+
+{$CASA_DOMAIN} {
+	root * /srv
+	encode zstd gzip
+	# Every public-demo request is small; uploads are denied by the API.
+	request_body {
+		max_size 64KB
+	}
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy same-origin
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+	}
+	# No access log: chat, JWTs, visitor addresses and URL parameters stay out
+	# of request logs. Caddy runtime/errors still go to container stderr.
+	@private path /.env* /.git* /docs /docs/* /redoc /openapi.json /api/v1/docs /api/v1/redoc /api/v1/openapi.json
+	handle @private {
+		respond "Not found" 404
+	}
+	handle /api/* {
+		# Preserve /api/v1; handle_path would strip the required prefix.
+		reverse_proxy backend:8000 {
+			# Caddy is the sole ingress. Remove caller-supplied identity headers
+			# before generating the trusted proxy identity Uvicorn consumes.
+			header_up -Forwarded
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Real-IP {remote_host}
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 20s
+			}
+		}
+	}
+	@immutable path /assets/* /pets/*
+	handle @immutable {
+		header Cache-Control "public, max-age=86400"
+		file_server
+	}
+	handle {
+		# Browser refreshes/deep links resolve through React Router.
+		try_files {path} /index.html
+		header Cache-Control "no-cache"
+		file_server
+	}
+}
+
+# Container-local health listener; not published on the host.
+http://:8080 {
+	respond /healthz "ok" 200
+}

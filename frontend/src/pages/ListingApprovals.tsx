@@ -69,6 +69,7 @@ function ReviewCard({
         {listing.status === "submitted" && (
           <>
             <Button
+              mutation
               onClick={() => {
                 action.reset();
                 setChange("approved");
@@ -77,6 +78,7 @@ function ReviewCard({
               Approve listing
             </Button>
             <Button
+              mutation
               variant="danger"
               onClick={() => {
                 action.reset();
@@ -89,6 +91,7 @@ function ReviewCard({
         )}
         {["approved", "unpublished"].includes(listing.status) && (
           <Button
+            mutation
             onClick={() => {
               action.reset();
               setChange("published");
@@ -103,6 +106,7 @@ function ReviewCard({
               View public listing
             </Link>
             <Button
+              mutation
               variant="secondary"
               onClick={() => {
                 action.reset();
@@ -165,6 +169,7 @@ function ReviewCard({
               maxLength={2000}
             />
             <Button
+              mutation
               type="submit"
               pending={action.pending}
               variant={change === "rejected" ? "danger" : "primary"}

@@ -45,6 +45,7 @@ export function SavedPage() {
                       </div>
                     )}
                     <Button
+                      mutation
                       variant="ghost"
                       pending={action.pending}
                       onClick={() =>

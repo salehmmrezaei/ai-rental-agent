@@ -1,0 +1,196 @@
+name: Verify Casa
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: rental
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+          POSTGRES_DB: rental_ci_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rental -d rental_ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://rental:ci-disposable-postgres-password@127.0.0.1:5432/rental_ci_test
+      TEST_DATABASE_URL: postgresql+psycopg://rental:ci-disposable-postgres-password@127.0.0.1:5432/rental_ci_test
+      JWT_SECRET: ci-only-randomness-is-not-needed-for-this-disposable-signing-key
+      OPENAI_API_KEY: ""
+      ASSISTANT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - name: Install locked backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install -r requirements.lock
+          python -m pip install --no-deps -e .
+      - name: Migrate disposable database
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Backend tests (live LLM disabled)
+        working-directory: backend
+        run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [normal, demo]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: rental
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+          POSTGRES_DB: rental_browser_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rental -d rental_browser_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://rental:ci-disposable-postgres-password@127.0.0.1:5432/rental_browser_test
+      E2E_DATABASE_URL: postgresql+psycopg://rental:ci-disposable-postgres-password@127.0.0.1:5432/rental_browser_test
+      JWT_SECRET: ci-only-randomness-is-not-needed-for-this-disposable-signing-key
+      OPENAI_API_KEY: ""
+      ASSISTANT_ENABLED: "false"
+      PUBLIC_DEMO_MODE: ${{ matrix.mode == 'demo' && 'true' || 'false' }}
+      E2E_PUBLIC_DEMO: ${{ matrix.mode == 'demo' && '1' || '0' }}
+      E2E_SEED_DEMO: "1"
+      DEMO_PASSWORD: ci-only-synthetic-demo-password
+      E2E_DEMO_PASSWORD: ci-only-synthetic-demo-password
+      AUTH_RATE_LIMIT: "1000"
+      DEMO_ACCESS_RATE_LIMIT: "1000"
+      ASSISTANT_RATE_LIMIT: "100"
+      E2E_API_TARGET: http://127.0.0.1:8001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare backend and synthetic data
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.lock
+          .venv/bin/pip install --no-deps -e .
+          .venv/bin/alembic upgrade head
+          if [ "$E2E_PUBLIC_DEMO" = "1" ]; then
+            .venv/bin/python -m app.seed --demo --non-interactive
+          fi
+          .venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8001 > /tmp/casa-browser-api.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8001/api/v1/health/ready > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/casa-browser-api.log
+          exit 1
+      - name: Browser tests
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chrome
+          npm run test:e2e
+      - name: Upload failed browser screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-${{ matrix.mode }}-failures
+          path: frontend/test-results
+          retention-days: 7
+
+  production-containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test production environment preflight
+        run: python3 -m unittest discover -s deploy -p 'test_*.py'
+      - name: Configure disposable container smoke test
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import secrets
+          data = Path('.env.production.example').read_text()
+          data = data.replace('replace-with-your-email@example.com', 'ci@example.com')
+          for _ in range(4):
+              data = data.replace('replace-with-independent-64-character-hex-secret', secrets.token_hex(32), 1)
+          Path('.env.production').write_text(data)
+          Path('.env.production').chmod(0o600)
+          PY
+          python3 deploy/check_env.py
+          # Plain HTTP is confined to this disposable CI test; no DNS or ACME.
+          sed -i 's|CASA_DOMAIN=casa.salehmmrezaei.com|CASA_DOMAIN=http://localhost|' .env.production
+      - name: Verify nested secrets stay outside Docker build context
+        run: |
+          mkdir -p frontend/casa-context-probe
+          printf 'HARMLESS_CONTEXT_SENTINEL=1\n' > frontend/.env.casa-context-probe
+          printf 'HARMLESS_CONTEXT_SENTINEL=1\n' > frontend/casa-context-probe/.env
+          printf 'HARMLESS_CONTEXT_SENTINEL=1\n' > frontend/casa-context-probe/.env.production
+          docker build -f - . <<'DOCKERFILE'
+          FROM node:24-alpine
+          COPY . /context
+          RUN test ! -e /context/.env.production && test ! -e /context/frontend/.env.casa-context-probe && test ! -e /context/frontend/casa-context-probe/.env && test ! -e /context/frontend/casa-context-probe/.env.production && test -f /context/.env.production.example && test -f /context/frontend/.env.example
+          DOCKERFILE
+          rm frontend/.env.casa-context-probe frontend/casa-context-probe/.env frontend/casa-context-probe/.env.production
+          rmdir frontend/casa-context-probe
+      - name: Build and start production images
+        run: deploy/compose.sh up --build -d --wait --wait-timeout 600
+      - name: Check proxy, static routes and immutable rental data
+        run: python3 deploy/smoke.py http://localhost
+      - name: Verify restart recovery
+        run: |
+          deploy/compose.sh restart backend web
+          deploy/compose.sh up -d --wait --wait-timeout 120
+          python3 deploy/smoke.py http://localhost
+      - name: Container logs on failure
+        if: failure()
+        run: deploy/compose.sh logs --tail 100
+      - name: Remove disposable CI stack
+        if: always()
+        run: deploy/compose.sh down -v

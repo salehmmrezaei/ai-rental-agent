@@ -88,6 +88,13 @@ export function mockApi(user?: User, handler?: Handler) {
       });
       const custom = await handler?.(path, method, body, url);
       if (custom) return custom;
+      if (path === "/demo/status")
+        return json({
+          enabled: false,
+          read_only: false,
+          assistant_mode: "unavailable",
+          roles: [],
+        });
       if (path === "/users/me")
         return user
           ? json(user)

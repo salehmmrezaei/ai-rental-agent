@@ -5,8 +5,16 @@ import type { Page, Property } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { useResource } from "../hooks/useResource";
 import { PropertyImage } from "../components/PropertyImage";
-import { Empty, PageTitle, Pagination, Resource } from "../components/ui";
+import {
+  Button,
+  Empty,
+  PageTitle,
+  Pagination,
+  Resource,
+} from "../components/ui";
+import { useDemo } from "../demo/context";
 export function PropertiesPage() {
+  const demo = useDemo();
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const resource = useResource<Page<Property>>(
@@ -21,10 +29,14 @@ export function PropertiesPage() {
         }
         description="Every space has a story. Manage the places in your portfolio."
         action={
-          <Link to={`${base}/new`} className="btn btn-primary">
-            <Plus size={17} />
-            Add property
-          </Link>
+          demo.enabled ? (
+            <Button mutation>Add property</Button>
+          ) : (
+            <Link to={`${base}/new`} className="btn btn-primary">
+              <Plus size={17} />
+              Add property
+            </Link>
+          )
         }
       />
       <Resource value={resource}>
@@ -68,9 +80,13 @@ export function PropertiesPage() {
               <Empty
                 title="It starts with a space"
                 action={
-                  <Link className="btn btn-primary" to={`${base}/new`}>
-                    Add your first property
-                  </Link>
+                  demo.enabled ? (
+                    <Button mutation>Add your first property</Button>
+                  ) : (
+                    <Link className="btn btn-primary" to={`${base}/new`}>
+                      Add your first property
+                    </Link>
+                  )
                 }
               >
                 Add a property, create its rooms or apartment, then submit a

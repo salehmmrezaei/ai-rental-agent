@@ -19,6 +19,7 @@ import { useResource } from "../hooks/useResource";
 import { useAction } from "../hooks/useAction";
 import { PropertyImage } from "../components/PropertyImage";
 import { propertyFrozen } from "./PropertyEditor";
+import { useDemo } from "../demo/context";
 import {
   BackLink,
   Badge,
@@ -46,6 +47,7 @@ type Dialog =
   | { type: "delete-image"; item: ImageType }
   | { type: "withdraw"; item: Unit };
 export function PropertyManagePage() {
+  const demo = useDemo();
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -79,14 +81,19 @@ export function PropertyManagePage() {
                       <Sparkles size={16} />
                       Ask AI assistant
                     </Link>
-                    <Link
-                      className="btn btn-secondary"
-                      to={`${base}/${id}/edit`}
-                    >
-                      <Edit3 size={16} />
-                      Edit property
-                    </Link>
+                    {demo.enabled ? (
+                      <Button mutation>Edit property</Button>
+                    ) : (
+                      <Link
+                        className="btn btn-secondary"
+                        to={`${base}/${id}/edit`}
+                      >
+                        <Edit3 size={16} />
+                        Edit property
+                      </Link>
+                    )}
                     <Button
+                      mutation
                       variant="danger"
                       disabled={frozen}
                       onClick={() => open({ type: "delete-property" })}
@@ -143,6 +150,7 @@ export function PropertyManagePage() {
                       </p>
                     </div>
                     <Button
+                      mutation
                       disabled={frozen}
                       onClick={() => open({ type: "unit" })}
                     >
@@ -206,6 +214,7 @@ export function PropertyManagePage() {
                           </div>
                           <div className="record-actions">
                             <Button
+                              mutation
                               variant="secondary"
                               disabled={frozen}
                               onClick={() => open({ type: "unit", item: unit })}
@@ -213,6 +222,7 @@ export function PropertyManagePage() {
                               Edit unit
                             </Button>
                             <Button
+                              mutation
                               variant="danger"
                               disabled={frozen}
                               onClick={() =>
@@ -224,6 +234,7 @@ export function PropertyManagePage() {
                             {(!unit.listing ||
                               unit.listing.status === "draft") && (
                               <Button
+                                mutation
                                 variant="secondary"
                                 onClick={() =>
                                   open({ type: "listing", item: unit })
@@ -236,6 +247,7 @@ export function PropertyManagePage() {
                             )}
                             {unit.listing?.status === "draft" && (
                               <Button
+                                mutation
                                 pending={action.pending}
                                 onClick={() =>
                                   void action.run(async () => {
@@ -258,6 +270,7 @@ export function PropertyManagePage() {
                                 "rejected",
                               ].includes(unit.listing.status) && (
                                 <Button
+                                  mutation
                                   variant="secondary"
                                   onClick={() =>
                                     open({ type: "withdraw", item: unit })
@@ -277,6 +290,7 @@ export function PropertyManagePage() {
                                 </Link>
                                 {user!.role === "admin" && (
                                   <Button
+                                    mutation
                                     variant="secondary"
                                     pending={action.pending}
                                     onClick={() =>
@@ -306,6 +320,7 @@ export function PropertyManagePage() {
                       title="Make room for possibilities"
                       action={
                         <Button
+                          mutation
                           disabled={frozen}
                           onClick={() => open({ type: "unit" })}
                         >
@@ -328,6 +343,7 @@ export function PropertyManagePage() {
                       </p>
                     </div>
                     <Button
+                      mutation
                       disabled={frozen}
                       onClick={() => open({ type: "upload" })}
                     >
@@ -354,6 +370,7 @@ export function PropertyManagePage() {
                           </p>
                           <div className="record-actions">
                             <Button
+                              mutation
                               variant="secondary"
                               disabled={frozen}
                               onClick={() =>
@@ -363,6 +380,7 @@ export function PropertyManagePage() {
                               Edit photo details
                             </Button>
                             <Button
+                              mutation
                               variant="danger"
                               disabled={frozen}
                               onClick={() =>
@@ -380,6 +398,7 @@ export function PropertyManagePage() {
                       title="A picture makes it feel like home"
                       action={
                         <Button
+                          mutation
                           disabled={frozen}
                           onClick={() => open({ type: "upload" })}
                         >
@@ -670,6 +689,7 @@ export function PropertyManagePage() {
                       </p>
                     )}
                     <Button
+                      mutation
                       type="submit"
                       pending={action.pending}
                       variant={

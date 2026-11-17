@@ -17,6 +17,8 @@ import {
   text,
 } from "../components/ui";
 import { cities } from "../components/SearchForm";
+import { useDemo } from "../demo/context";
+import { DemoReadOnlyNotice } from "../demo/DemoBanner";
 export const frozenStatuses = [
   "submitted",
   "approved",
@@ -136,7 +138,7 @@ function PropertyForm({ initial }: { initial?: PropertyDetail }) {
             Development property records are marked as synthetic. Ownership is
             assigned when the property is created.
           </p>
-          <Button type="submit" pending={action.pending}>
+          <Button mutation type="submit" pending={action.pending}>
             {initial ? "Save property" : "Create property"}
           </Button>
         </fieldset>
@@ -145,6 +147,7 @@ function PropertyForm({ initial }: { initial?: PropertyDetail }) {
   );
 }
 export function PropertyEditorPage() {
+  const demo = useDemo();
   const { id } = useParams();
   const { user } = useAuth();
   const resource = useResource<PropertyDetail>(id ? `/properties/${id}` : null);
@@ -161,7 +164,9 @@ export function PropertyEditorPage() {
         title={id ? "Edit property" : "Add a property"}
         description="Start with the details. Rooms and photos come next."
       />
-      {id ? (
+      {demo.enabled ? (
+        <DemoReadOnlyNotice />
+      ) : id ? (
         <Resource value={resource}>
           {(property) => <PropertyForm key={property.id} initial={property} />}
         </Resource>

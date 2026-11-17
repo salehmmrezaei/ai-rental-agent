@@ -33,6 +33,36 @@ creation and editing, reviews, applications, visits, messages and reports. See
 Static deployments must forward `/api` to FastAPI and rewrite other frontend
 routes to index.html. Vite's development server is not a production host.
 
+## Public portfolio demo
+
+When the backend enables `PUBLIC_DEMO_MODE=true`, Casa displays a fictional-demo
+notice and password-free Tenant, Landlord and Agency entry buttons. The backend
+capability endpoint selects this mode; no frontend secret or API key is needed.
+Shared profiles, inventory, applications, contracts, visits and conversations are
+read-only. Creation, editing, messaging, account updates and uploads are disabled
+in the interface and independently blocked by the backend.
+
+Demo access tokens use this tab’s session storage. Switching roles starts a fresh
+visitor session and clears its selected Blu conversation. Normal application
+sessions continue to use the existing local storage behavior. Blu keeps its
+existing artwork and animations. Both chat surfaces show **Simulated AI Assistant**
+and offer bounded, role-specific queries against fictional data; they make no
+external LLM requests in public-demo mode. Local/live assistant behavior remains
+available when public-demo mode is disabled and configured on the backend.
+
+Run the dedicated browser acceptance suite against a seeded demo backend:
+
+```sh
+E2E_PUBLIC_DEMO=1 E2E_API_TARGET=http://127.0.0.1:8002 npm run test:e2e
+```
+
+This suite starts Vite on port 5174 for browser verification only. To verify an
+already-running production frontend, also set `E2E_BASE_URL` to its origin. It
+checks public images/deep links, all three roles, disabled writes, API enforcement,
+visitor chat separation, simulated chat, Blu and desktop/mobile accessibility.
+Unlike the normal rental workflow suite, it does not provision users through the
+database. Seed the backend before running it.
+
 ## Structure
 
 - `src/api`: DTOs, HTTP client, multipart support and persisted bearer sessions.
