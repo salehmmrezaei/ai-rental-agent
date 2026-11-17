@@ -65,7 +65,7 @@ Results are limited to what was actually run locally, not to an unprovisioned pu
 | Container restart / seed rerun | Passed local API/Caddy restart and readiness, followed by the complete HTTP smoke; seed rerun preserved the existing dataset. |
 | Logical DB/image/Caddy-data backup and isolated restore | Passed documented backup script, non-superuser restore to fresh PostgreSQL 18 volumes, migration/seed rerun, synthetic PNG and Caddy-data archive probes, and full HTTP smoke against the restored stack. The local plain-HTTP test did not create a real public certificate. |
 | Public DNS, real HTTPS, external firewall and VPS reboot | Not performed; requires the live server and domain configuration. |
-| GitHub workflow execution | Workflow prepared; a GitHub run is required after the reviewed branch is pushed. |
+| GitHub workflow execution | Runs automatically on pushes and pull requests. See [PR #17 checks](https://github.com/salehmmrezaei/ai-rental-agent/pull/17/checks) for the current hosted results. The browser tests use portable artifact paths and wait for listing details before refresh assertions. |
 
 Production npm dependency audit reports zero vulnerabilities. The complete development audit still reports six high-severity affected packages from the unpatched [Picomatch glob ReDoS advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), with no critical advisories. These are build/test chains through Vite/Vitest and are absent from the final Caddy static runtime. Build only trusted source/configuration, keep development/preview servers private and revisit the upstream patch before the next rebuild. Undici's fix is included in the lockfile.
 
@@ -77,4 +77,4 @@ Verify the actual hostname from outside the VPS, including HTTP→HTTPS, certifi
 
 The demo's seed is idempotent and date anchored. Current visits/leases naturally become historical; available-until dates expire two years after initial seeding. A reset creates new dedicated volumes after backup and verification. Do not remove guardrails to expose an older mixed development database.
 
-The code and deployment files are reviewable locally. Record the final branch, commit, PR URL and completed live acceptance evidence in the release; no claim of public deployment should be made before that URL is verified.
+The code and deployment files are on `feat/safe-public-demo` in [draft PR #17](https://github.com/salehmmrezaei/ai-rental-agent/pull/17), targeting the existing `demo` branch. Record the reviewed commit and completed live acceptance evidence in the release; no claim of public deployment should be made before that URL is verified.
