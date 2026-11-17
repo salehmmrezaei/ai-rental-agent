@@ -1,5 +1,8 @@
 # Casa public portfolio deployment
 
+This guide covers the optional VPS/Docker architecture. For the zero-additional-cost
+Vercel Hobby + Neon Free path, use [the serverless guide](vercel-neon.md).
+
 The repository is prepared for `https://casa.salehmmrezaei.com`. These instructions do not imply that the site is deployed. Review the exact configuration and provide hosting/DNS access through your own accounts before running the live steps.
 
 ## Architecture and operating policy

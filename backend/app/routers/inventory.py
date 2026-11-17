@@ -175,4 +175,5 @@ def optional_user(db: DB,credentials: Annotated[HTTPAuthorizationCredentials|Non
 @router.get('/images/{image_id}')
 def image_file(image_id: UUID,db: DB,user: Annotated[User|None,Depends(optional_user)]):
     path=images.readable_image(db,image_id,user)
-    return FileResponse(path,headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'},content_disposition_type='inline')
+    cache = 'public, max-age=3600, s-maxage=86400' if get_settings().serverless_database and user is None else 'private, no-store'
+    return FileResponse(path,headers={'Cache-Control':cache,'X-Content-Type-Options':'nosniff'},content_disposition_type='inline')

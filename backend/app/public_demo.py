@@ -1,7 +1,7 @@
-"""Restricted public personas. Only disposable process memory belongs to visitors.
+"""Restricted public personas over immutable shared synthetic rental records.
 
-The domain database is never modified by demo sessions. This deliberately supports
-one application worker; restarts revoke sessions and discard all visitor state.
+Docker defaults to disposable memory (one worker). The serverless entrypoint uses
+shared PostgreSQL operational tables, so visitor state survives instance changes.
 """
 from dataclasses import dataclass
 from threading import Lock
@@ -12,6 +12,7 @@ from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict
 from typing import Literal
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import JSONResponse
 
 from app.config import get_settings
@@ -72,7 +73,10 @@ class DemoSessionStore:
 _store = DemoSessionStore()
 
 
-def get_demo_store() -> DemoSessionStore:
+def get_demo_store(db=None):
+    if get_settings().demo_state_backend == 'postgres':
+        from app.shared_demo import PostgresDemoStore
+        return PostgresDemoStore(db)
     return _store
 
 
@@ -82,6 +86,11 @@ def validate_demo_dataset(db) -> None:
     Public mode needs a dedicated database containing the complete reserved seed.
     This check performs reads only and never repairs or removes operator data.
     """
+    if get_settings().demo_state_backend == 'postgres':
+        from sqlalchemy import text
+        if not db.scalar(text('SELECT casa_demo_dataset_valid()')):
+            raise ApiError(503, 'demo_dataset_required', 'A complete, dedicated synthetic demo database is required.')
+        return
     for model, ids in footprint().items():
         count, outsiders = db.execute(select(func.count(), func.count().filter(model.id.not_in(ids)))
                                       .select_from(model)).one()
@@ -128,7 +137,7 @@ def access(data: DemoAccess, db: DB, request: Request, response: Response):
     user = db.get(User, record_id(data.role))
     if user is None or not user.is_active or user.role != data.role or user.email != DEMO_EMAILS[data.role]:
         raise ApiError(503, "demo_dataset_required", "The synthetic demo persona is unavailable.")
-    sid = get_demo_store().issue(user)
+    sid = get_demo_store(db).issue(user)
     token, seconds = create_demo_token(user, sid)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
@@ -142,26 +151,34 @@ class PublicDemoPolicy:
     def __init__(self, app):
         self.app = app
         settings = get_settings()
-        self.by_ip = AuthThrottle(settings.demo_request_rate_limit)
-        self.global_requests = AuthThrottle(settings.demo_global_rate_limit)
+        from app.shared_demo import throttle
+        self.by_ip = throttle('requests-ip', settings.demo_request_rate_limit)
+        self.global_requests = throttle('requests-global', settings.demo_global_rate_limit)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         method = scope.get("method", "")
         path = scope.get("path", "").rstrip("/")
-        if path.startswith("/api/v1/") and path != "/api/v1/health/live":
+        if method not in {"GET", "HEAD", "OPTIONS"} and (method != 'POST' or path not in self.ALLOWED_POSTS):
+            # Reject prohibited operations without waking Neon or consuming DB
+            # connections, even for huge unauthenticated upload bodies.
+            return await JSONResponse(status_code=403, content={"error": {
+                "code": "demo_read_only", "message": "This public demo is read-only. Shared rental data cannot be changed."}})(scope, receive, send)
+        if path.startswith("/api/v1/") and path not in {"/api/v1/health/live", "/api/v1/demo/status"}:
             address = scope.get("client")
-            delay = self.by_ip.retry_after(address[0] if address else "unknown")
-            if not delay:
-                delay = self.global_requests.retry_after("all")
+            from starlette.concurrency import run_in_threadpool
+            try:
+                delay = await run_in_threadpool(self.by_ip.retry_after, address[0] if address else "unknown")
+                if not delay:
+                    delay = await run_in_threadpool(self.global_requests.retry_after, "all")
+            except SQLAlchemyError:
+                return await JSONResponse(status_code=503, headers={'Retry-After':'10'},
+                    content={'error':{'code':'database_unavailable', 'message':'The demo database is waking or unavailable. Please try again.'}})(scope, receive, send)
             if delay:
                 return await JSONResponse(status_code=429, headers={"Retry-After": str(delay)},
                     content={"error": {"code": "rate_limited", "message": "The demo is busy. Please wait a minute."}})(scope, receive, send)
         if method not in {"GET", "HEAD", "OPTIONS"}:
-            if method != "POST" or path not in self.ALLOWED_POSTS:
-                return await JSONResponse(status_code=403, content={"error": {
-                    "code": "demo_read_only", "message": "This public demo is read-only. Shared rental data cannot be changed."}})(scope, receive, send)
             # These three endpoints take tiny JSON bodies. Bound them even when
             # Content-Length is absent or dishonest, without spooling uploads.
             chunks, total = [], 0

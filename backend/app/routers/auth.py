@@ -27,7 +27,7 @@ def logout(db: DB, user: CurrentUser):
     """Revoke all of the authenticated user's access tokens across devices."""
     if get_settings().public_demo_mode:
         from app.public_demo import get_demo_store
-        get_demo_store().discard(user.demo_session_id)
+        get_demo_store(db).discard(user.demo_session_id)
     else:
         auth.logout(db, user)
     return Response(status_code=204)

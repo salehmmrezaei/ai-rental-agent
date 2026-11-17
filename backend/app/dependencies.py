@@ -27,7 +27,7 @@ def current_user(db: DB, credentials: Annotated[HTTPAuthorizationCredentials | N
         from app.seed import record_id
         if claims["demo_role"] != user.role or user.id != record_id(user.role):
             raise unauthorized()
-        get_demo_store().require(claims["sid"], user.id, user.role)
+        get_demo_store(db).require(claims["sid"], user.id, user.role)
         user.demo_session_id = claims["sid"]
     return user
 

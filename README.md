@@ -56,6 +56,11 @@ Live AI chat is optional: set the backend's `OPENAI_API_KEY` in `.env`. Browsing
 
 ## Public portfolio demo
 
+For zero additional hosting cost, use the [Vercel Hobby + Neon Free guide](docs/vercel-neon.md).
+The native Vercel configuration serves React and FastAPI on one origin and stores
+temporary visitor sessions/chat in PostgreSQL across serverless instances. It uses
+no model API key or paid add-on. Free-tier usage limits still apply.
+
 The separate production setup is prepared for `https://casa.salehmmrezaei.com`; deployment and DNS still require the owner's hosting configuration and live verification. Visitors can explore tenant, landlord and agency roles without a password. Shared fictional rental data stays read-only, with restrictions enforced by the backend even for direct API calls.
 
 The **Simulated AI Assistant** uses guided, authorized queries against the synthetic dataset, displays listing cards and preserves Blu. It makes no external model requests and needs no API key. Visitor sessions and chat are temporary; normal local development retains the optional live integration and existing rental workflows.

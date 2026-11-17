@@ -7,7 +7,6 @@ from app.errors import ApiError
 from app.models import User
 from app.schemas.assistant import AssistantStatus, ChatInput, Confirmation, ThreadRead, ThreadDetail, ActionRead, ListingReference, VisitReference
 from app.schemas.inventory import Page
-from app.services import assistant as service
 from app.services import simulated_assistant
 from app.throttle import AuthThrottle
 
@@ -18,7 +17,18 @@ Agency = Annotated[User, Depends(require_roles("admin"))]
 
 
 def current_service():
-    return simulated_assistant if get_settings().public_demo_mode else service
+    if get_settings().public_demo_mode:
+        if getattr(get_settings(), 'demo_state_backend', 'memory') == 'postgres':
+            from app.services import shared_simulated_assistant
+            return shared_simulated_assistant
+        return simulated_assistant
+    return live_service()
+
+
+def live_service():
+    # Public demo imports neither the Agents SDK nor the OpenAI client.
+    from app.services import assistant
+    return assistant
 
 
 @router.get("/status", response_model=AssistantStatus)
@@ -71,11 +81,11 @@ def chat(data: ChatInput, db: DB, user: Participant, request: Request):
 def confirm(action_id: UUID, data: Confirmation, db: DB, user: Participant):
     if get_settings().public_demo_mode:
         raise ApiError(403, "demo_read_only", "The public demo cannot confirm changes to shared records.")
-    return service.resolve_action(db, user, action_id, True)
+    return live_service().resolve_action(db, user, action_id, True)
 
 
 @router.post("/actions/{action_id}/cancel", response_model=ActionRead)
 def cancel(action_id: UUID, db: DB, user: Participant):
     if get_settings().public_demo_mode:
         raise ApiError(403, "demo_read_only", "The public demo cannot change shared assistant actions.")
-    return service.resolve_action(db, user, action_id, False)
+    return live_service().resolve_action(db, user, action_id, False)

@@ -6,10 +6,13 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 from app.config import get_settings
 from app.models import Base
+from app.database import database_url
 
 
 def run():
-    url = get_settings().database_url
+    settings = get_settings()
+    direct = settings.database_direct_url.get_secret_value() if settings.database_direct_url else ''
+    url = database_url(direct or settings.database_url)
     if context.is_offline_mode():
         context.configure(url=url, target_metadata=Base.metadata, literal_binds=True,
                           dialect_opts={"paramstyle": "named"})

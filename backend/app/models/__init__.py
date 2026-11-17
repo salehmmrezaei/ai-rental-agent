@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.demo import DemoVisitor, DemoRateBucket
 from app.models.assistant import AssistantThread, AssistantMessage, AssistantAction
 from app.models.entities import (
     Amenity, Conversation, Listing, Message, Property, PropertyAmenity,
