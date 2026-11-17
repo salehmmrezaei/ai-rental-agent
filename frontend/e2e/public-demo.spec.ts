@@ -19,7 +19,8 @@ test("sample homes, images and React deep links work without signing in", async 
   await expect(
     page.getByRole("complementary", { name: "Fictional portfolio demo" }),
   ).toBeVisible();
-  const photo = page.locator(".listing-card .listing-photo").first();
+  const card = page.locator(".listing-card").first();
+  const photo = card.locator(".listing-photo");
   await expect(photo).toBeVisible();
   await expect(photo.locator("img")).toBeVisible();
   await expect
@@ -29,11 +30,17 @@ test("sample homes, images and React deep links work without signing in", async 
         .evaluate((img: HTMLImageElement) => img.naturalWidth),
     )
     .toBeGreaterThan(0);
+  const title = await card.locator("h3").innerText();
   await photo.click();
   await expect(page).toHaveURL(/\/listings\/[a-f0-9-]+$/);
-  const title = await page.locator("h1").textContent();
+  const detailHeading = page.getByRole("heading", {
+    name: title,
+    level: 1,
+    exact: true,
+  });
+  await expect(detailHeading).toBeVisible();
   await page.reload();
-  await expect(page.locator("h1")).toHaveText(title!);
+  await expect(detailHeading).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Save home", exact: true }),
   ).toBeDisabled();

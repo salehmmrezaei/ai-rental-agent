@@ -449,7 +449,7 @@ test("seeded demo accounts show persisted rental data and searchable homes", asy
 });
 test("public desktop and mobile pages are accessible and do not overflow", async ({
   page,
-}) => {
+}, testInfo) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
@@ -467,7 +467,7 @@ test("public desktop and mobile pages are accessible and do not overflow", async
       .analyze();
     expect(accessibility.violations).toEqual([]);
     await page.screenshot({
-      path: `/private/tmp/casa-home-${width}.png`,
+      path: testInfo.outputPath(`casa-home-${width}.png`),
       fullPage: true,
     });
     if (width === 390) {
@@ -489,7 +489,7 @@ test("public desktop and mobile pages are accessible and do not overflow", async
 
 test("sample photos, date filters and dashboard shortcuts work on desktop and mobile", async ({
   page,
-}) => {
+}, testInfo) => {
   test.skip(!process.env.E2E_DEMO_PASSWORD, "Requires the demo portfolio");
   const start = dateIn(150),
     end = dateIn(240);
@@ -503,7 +503,7 @@ test("sample photos, date filters and dashboard shortcuts work on desktop and mo
     .poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth))
     .toBeGreaterThan(0);
   await page.screenshot({
-    path: "/private/tmp/casa-search-v2-1440.png",
+    path: testInfo.outputPath("casa-search-v2-1440.png"),
     fullPage: true,
   });
   await page.locator(".listing-card .listing-photo").first().click();
@@ -518,7 +518,7 @@ test("sample photos, date filters and dashboard shortcuts work on desktop and mo
     )
     .toBeGreaterThan(0);
   await page.screenshot({
-    path: "/private/tmp/casa-detail-v2-1440.png",
+    path: testInfo.outputPath("casa-detail-v2-1440.png"),
     fullPage: true,
   });
   const detailAxe = await new AxeBuilder({ page })
@@ -550,7 +550,7 @@ test("sample photos, date filters and dashboard shortcuts work on desktop and mo
     ),
   ).toBe(true);
   await page.screenshot({
-    path: "/private/tmp/casa-search-v2-390.png",
+    path: testInfo.outputPath("casa-search-v2-390.png"),
     fullPage: true,
   });
   await signIn(page, "demo.tenant@example.com", process.env.E2E_DEMO_PASSWORD!);
@@ -576,7 +576,7 @@ test("sample photos, date filters and dashboard shortcuts work on desktop and mo
     .toBeGreaterThan(0);
   await expect(privateCover).toHaveAttribute("src", /^blob:/);
   await page.screenshot({
-    path: "/private/tmp/casa-properties-v2-390.png",
+    path: testInfo.outputPath("casa-properties-v2-390.png"),
     fullPage: true,
   });
   const ownerAxe = await new AxeBuilder({ page })
@@ -587,7 +587,7 @@ test("sample photos, date filters and dashboard shortcuts work on desktop and mo
 
 test("agency dashboards are accessible on desktop and mobile", async ({
   page,
-}) => {
+}, testInfo) => {
   await signIn(
     page,
     process.env.E2E_ADMIN_EMAIL!,
@@ -629,7 +629,7 @@ test("agency dashboards are accessible on desktop and mobile", async ({
       ).toEqual([]);
       if (route === "/admin")
         await page.screenshot({
-          path: `/private/tmp/casa-admin-${width}.png`,
+          path: testInfo.outputPath(`casa-admin-${width}.png`),
           fullPage: true,
         });
     }

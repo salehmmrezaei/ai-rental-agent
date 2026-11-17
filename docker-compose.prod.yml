@@ -8,7 +8,7 @@ x-logging: &logging
     max-file: "3"
 
 x-app-environment: &app-environment
-  DATABASE_URL: postgresql+psycopg://${APP_DB_USER:?Set APP_DB_USER}:${APP_DB_PASSWORD:?Set APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:?Set POSTGRES_DB}
+  DATABASE_URL: postgresql+psycopg://${APP_DB_USER:?Set APP_DB_USER}:${APP_DB_PASSWORD:?}@db:5432/${POSTGRES_DB:?Set POSTGRES_DB}
   JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
   JWT_ISSUER: casa-public-demo
   JWT_AUDIENCE: casa-public-demo-api
@@ -47,10 +47,10 @@ services:
     image: postgres:18
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
       APP_DB_USER: ${APP_DB_USER:?Set APP_DB_USER}
-      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?}
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=50"]
     volumes:
@@ -88,7 +88,7 @@ services:
     <<: *app
     environment:
       <<: *app-environment
-      DEMO_PASSWORD: ${DEMO_PASSWORD:?Set a private random DEMO_PASSWORD}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?}
     command: ["python", "-m", "app.seed", "--demo", "--non-interactive"]
     restart: "no"
     mem_limit: 768m
