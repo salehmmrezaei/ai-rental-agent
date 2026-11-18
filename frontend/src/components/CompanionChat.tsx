@@ -474,12 +474,12 @@ export function CompanionChat({ active }: { active: boolean }) {
           ? "Choose a demo role above to explore Blu’s Simulated AI Assistant."
           : "Sign in to give Blu requests for your rental or property workspace."}
       </p>
-      {!user && (
+      {!demo.enabled && (
         <Link
           className="btn btn-primary"
           to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
         >
-          {demo.enabled ? "Explore demo roles" : "Sign in to chat"}
+          Sign in to chat
         </Link>
       )}
     </div>

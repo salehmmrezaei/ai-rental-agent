@@ -41,9 +41,9 @@ export function PublicLayout() {
             onClick={() => setOpen(false)}
           >
             <NavLink to="/listings">Find a home</NavLink>
-            <NavLink to={demo.enabled ? "/login" : "/register?role=landlord"}>
-              {demo.enabled ? "Explore workspaces" : "For landlords"}
-            </NavLink>
+            {!demo.enabled && (
+              <NavLink to="/register?role=landlord">For landlords</NavLink>
+            )}
             {user ? (
               <Link className="btn btn-primary" to={dashboardPath(user.role)}>
                 My dashboard
@@ -74,16 +74,11 @@ export function PublicLayout() {
         </div>
         <div>
           <Link to="/listings">Explore homes</Link>
-          <Link to={demo.enabled ? "/login" : "/register?role=landlord"}>
-            {demo.enabled ? "Explore demo roles" : "List your property"}
-          </Link>
-          <Link to="/login">Your account</Link>
+          {!demo.enabled && (
+            <Link to="/register?role=landlord">List your property</Link>
+          )}
         </div>
-        <p className="footer-note">
-          Made for life in Italy.
-          <br />
-          Demo homes use sample photos.
-        </p>
+        <p className="footer-note">Made for life in Italy.</p>
       </footer>
     </div>
   );
