@@ -54,7 +54,7 @@ backend/.venv/bin/python -m dotenv -f .env.neon run -- backend/.venv/bin/alembic
 backend/.venv/bin/python -m dotenv -f .env.neon run -- backend/.venv/bin/python -m app.seed --demo --non-interactive
 ```
 
-Alembic also accepts `DATABASE_DIRECT_URL` when a pooled `DATABASE_URL` is otherwise configured. Use the direct URL for schema changes. Never run migrations/seeding in a Vercel request, startup hook or every preview build. The seed is transactional/idempotent, preserves original IDs/dates/password hashes and attaches the same bundled fictional photos. It never deletes unrelated data or silently repairs a partial seed. Initial hashing is done on your computer, not in a serverless request.
+Alembic also accepts `DATABASE_DIRECT_URL` when a pooled `DATABASE_URL` is otherwise configured, and recognizes Neon's CLI-generated `DATABASE_URL_UNPOOLED` as a fallback. The explicit `DATABASE_DIRECT_URL` takes precedence. Use the direct URL for schema changes. Never run migrations/seeding in a Vercel request, startup hook or every preview build. The seed is transactional/idempotent, preserves original IDs/dates/password hashes and attaches the same bundled fictional photos. It never deletes unrelated data or silently repairs a partial seed. Initial hashing is done on your computer, not in a serverless request.
 
 ## 4. Create the restricted runtime role
 

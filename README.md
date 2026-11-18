@@ -57,6 +57,8 @@ Live AI chat is optional: set the backend's `OPENAI_API_KEY` in `.env`. Browsing
 ## Public portfolio demo
 
 For zero additional hosting cost, use the [Vercel Hobby + Neon Free guide](docs/vercel-neon.md).
+The [Neon setup and local run instructions](docs/neon-setup.md) describe the connected
+database, private environment files, root build command, and completed verification.
 The native Vercel configuration serves React and FastAPI on one origin and stores
 temporary visitor sessions/chat in PostgreSQL across serverless instances. It uses
 no model API key or paid add-on. Free-tier usage limits still apply.
