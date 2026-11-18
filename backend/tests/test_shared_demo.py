@@ -200,7 +200,7 @@ print('ok')
 def test_runtime_database_role_cannot_write_domain_tables(instances, engine):
     from pathlib import Path
     from sqlalchemy.exc import DBAPIError
-    script = Path('deploy/neon-runtime-role.sql').read_text()
+    script = (Path(__file__).resolve().parents[2]/'deploy/neon-runtime-role.sql').read_text()
     try:
         with engine.begin() as conn:
             conn.exec_driver_sql(script)
