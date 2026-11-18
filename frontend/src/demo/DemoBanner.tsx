@@ -68,8 +68,7 @@ export function DemoBanner() {
           <strong>Casa · Fictional portfolio demo</strong>
           <p>
             Explore three rental workspaces with synthetic people and homes.
-            Shared records are read-only. Blu is a Simulated AI Assistant; no
-            live AI service is used.
+            Shared records are read-only. Blu is a Simulated AI Assistant.
           </p>
         </div>
         <DemoRoleChoices />
