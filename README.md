@@ -1,70 +1,39 @@
-# Casa · AI Rental Agent
+# Casa · Rental Platform
 
-A rental platform for rooms and apartments in Italy, bringing home search, property management, and AI support into one place.
+A full-stack portfolio project for finding rental homes and managing properties in Italy.
+
+**[Visit the live demo →](https://casa.salehmmrezaei.com)**
+
+Explore tenant, landlord and agency dashboards without a password. The demo uses fictional data, keeps rental records read-only and includes a clearly labelled simulated AI assistant.
 
 ![Casa homepage with city, home type, and date filters](docs/images/homepage.png)
 
-## What it does
+## What you can explore
 
-- **Tenants:** find and save homes, request visits, apply for rentals, and contact the agency.
-- **Landlords:** manage properties, listings, availability, and occupancy.
-- **Agency staff:** review listings and applications, manage contracts, and coordinate visits.
-- **AI assistance:** ask questions using live rental data and review proposed actions before confirming any change.
+- **Tenants:** search homes, compare prices, and view applications, visits and saved listings.
+- **Landlords:** explore property management, rental listings and occupancy.
+- **Agencies:** review listings, applications, contracts and appointments.
+- **Assistant & Blu:** ask guided rental questions and see relevant homes in chat.
 
-The demo includes **300 synthetic properties across Bologna, Milan, Rome, and Florence**, with sample photos and accounts for all three roles.
+Includes **300 sample properties** across Bologna, Milan, Rome and Florence.
 
 <details>
-<summary>Preview the property detail page</summary>
+<summary>View the property detail page</summary>
 
 ![Casa property detail page with a photo gallery and save-home action](docs/images/property-details.png)
 
 </details>
 
-## Architecture & development
+## Built with
 
-![Casa system architecture and seven-stage development flow](docs/images/architecture-development-flow.svg)
+**React · TypeScript · Python · FastAPI · PostgreSQL**
 
-## Tech stack
+Vercel and Neon support the public demo. Docker supports local development and an alternative deployment. Tests use pytest, Vitest and Playwright.
 
-| Area | Technologies |
-| --- | --- |
-| Frontend | React, TypeScript, Tailwind CSS, Vite |
-| Backend & data | Python, FastAPI, PostgreSQL, SQLAlchemy, Alembic |
-| AI | Offline simulated demo; optional OpenAI Agents SDK / Responses API in normal environments |
-| Tooling & testing | Docker Compose, pytest, Vitest, Playwright |
+## System design
 
-## Run locally
+![Casa system architecture and development flow](docs/images/architecture-development-flow.svg)
 
-Requires Docker with Compose. Copy the configuration:
+## Run and learn more
 
-```sh
-cp -n .env.example .env
-```
-
-In `.env`, set a database password and matching `DATABASE_URL`, a random `JWT_SECRET` of at least 32 bytes, and uncomment/set `DEMO_PASSWORD` (12–128 characters). Then start the app and load the demo:
-
-```sh
-docker compose up --build -d --wait
-docker compose --profile demo run --build --rm seed
-```
-
-Open [Casa](http://localhost:5173). Sign in as `demo.tenant@example.com`, `demo.landlord@example.com`, or `demo.agency@example.com` using your `DEMO_PASSWORD`.
-
-Live AI chat is optional: set the backend's `OPENAI_API_KEY` in `.env`. Browsing and rental workflows work without it.
-
-[Development guide & tests](docs/development.md) · [Architecture details](docs/architecture.md) · [AI assistant design](docs/phase-7.md)
-
-## Public portfolio demo
-
-For zero additional hosting cost, use the [Vercel Hobby + Neon Free guide](docs/vercel-neon.md).
-The [Neon setup and local run instructions](docs/neon-setup.md) describe the connected
-database, private environment files, root build command, and completed verification.
-The native Vercel configuration serves React and FastAPI on one origin and stores
-temporary visitor sessions/chat in PostgreSQL across serverless instances. It uses
-no model API key or paid add-on. Free-tier usage limits still apply.
-
-The separate production setup is prepared for `https://casa.salehmmrezaei.com`; deployment and DNS still require the owner's hosting configuration and live verification. Visitors can explore tenant, landlord and agency roles without a password. Shared fictional rental data stays read-only, with restrictions enforced by the backend even for direct API calls.
-
-The **Simulated AI Assistant** uses guided, authorized queries against the synthetic dataset, displays listing cards and preserves Blu. It makes no external model requests and needs no API key. Visitor sessions and chat are temporary; normal local development retains the optional live integration and existing rental workflows.
-
-Production uses an optimized React build, Caddy HTTPS, one FastAPI worker and private PostgreSQL 18 with persistent storage. See the [deployment guide](docs/deployment.md), [readiness and security report](docs/deployment-readiness.md) and [safe production env template](.env.production.example). The development Compose file remains separate.
+[Local setup & tests](docs/development.md) · [Architecture](docs/architecture.md) · [Assistant & Blu](docs/assistant.md) · [Deployment](docs/vercel-neon.md)
