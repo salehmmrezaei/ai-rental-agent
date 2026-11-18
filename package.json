@@ -1,0 +1,17 @@
+{
+  "name": "casa",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "dev:neon:api": "backend/.venv/bin/python -m dotenv -f .env.neon-demo run -- backend/.venv/bin/uvicorn --app-dir backend vercel_entry:app --host 127.0.0.1 --port 8000",
+    "test": "npm --prefix frontend test"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@neon/config": "^1.14.3",
+    "@neon/env": "^2.1.6"
+  }
+}

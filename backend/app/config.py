@@ -1,5 +1,5 @@
 from functools import lru_cache
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
 
@@ -31,7 +31,10 @@ class Settings(BaseSettings):
     demo_global_rate_limit: int = Field(default=1200, ge=60, le=20000)
     public_docs_enabled: bool = True
     demo_state_backend: Literal['memory', 'postgres'] = 'memory'
-    database_direct_url: SecretStr | None = None
+    database_direct_url: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices('DATABASE_DIRECT_URL', 'DATABASE_URL_UNPOOLED', 'database_direct_url'),
+    )
     serverless_database: bool = False
 
     def assistant_available(self) -> bool:
