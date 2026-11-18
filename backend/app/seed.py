@@ -13,7 +13,6 @@ import secrets
 import sys
 from uuid import UUID, uuid5
 
-from faker import Faker
 from dotenv import dotenv_values
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -28,6 +27,17 @@ from app.security import hash_password
 from app.repositories.inventory import today
 
 NAMESPACE = UUID("d6e39157-c440-4c6e-9959-c7201979895f")
+
+
+def __getattr__(name):
+    # Keep the seed module's existing testing/extension surface without loading
+    # Faker into every public API function cold start.
+    if name == 'Faker':
+        from faker import Faker
+        return Faker
+    raise AttributeError(name)
+
+
 DEMO_EMAILS = {
     "admin": "demo.agency@example.com",
     "landlord": "demo.landlord@example.com",
@@ -88,6 +98,7 @@ def seed_demo(session: Session, password: str, *, as_of: date | None = None):
     if session.scalar(select(User.id).where(User.email.in_(emails)).limit(1)):
         raise SeedError("Reserved demo email already exists; no records were changed")
 
+    from faker import Faker
     anchor = as_of or today()
     fake = Faker("it_IT")
     fake.seed_instance(6006)

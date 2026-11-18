@@ -1,5 +1,9 @@
 # Deployment readiness and security review
 
+This report describes the initial Docker delivery. The subsequent Vercel/Neon
+adaptation uses additive operational migration `0010`; see the
+[serverless guide](vercel-neon.md) and [serverless verification report](vercel-readiness.md).
+
 Prepared for `https://casa.salehmmrezaei.com`. **The public site has not been deployed or verified by this implementation.** DNS changes, VPS provisioning, public HTTPS/firewall checks and owner acceptance remain required.
 
 ## Architecture assessment

@@ -67,6 +67,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: python3 ../deploy/test_vercel.py
 
   browser:
     runs-on: ubuntu-latest
@@ -74,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [normal, demo]
+        mode: [normal, demo, serverless]
     services:
       postgres:
         image: postgres:18
@@ -92,8 +93,10 @@ jobs:
       JWT_SECRET: ci-only-randomness-is-not-needed-for-this-disposable-signing-key
       OPENAI_API_KEY: ""
       ASSISTANT_ENABLED: "false"
-      PUBLIC_DEMO_MODE: ${{ matrix.mode == 'demo' && 'true' || 'false' }}
-      E2E_PUBLIC_DEMO: ${{ matrix.mode == 'demo' && '1' || '0' }}
+      PUBLIC_DEMO_MODE: ${{ matrix.mode != 'normal' && 'true' || 'false' }}
+      E2E_PUBLIC_DEMO: ${{ matrix.mode != 'normal' && '1' || '0' }}
+      DEMO_STATE_BACKEND: ${{ matrix.mode == 'serverless' && 'postgres' || 'memory' }}
+      SERVERLESS_DATABASE: ${{ matrix.mode == 'serverless' && 'true' || 'false' }}
       E2E_SEED_DEMO: "1"
       DEMO_PASSWORD: ci-only-synthetic-demo-password
       E2E_DEMO_PASSWORD: ci-only-synthetic-demo-password

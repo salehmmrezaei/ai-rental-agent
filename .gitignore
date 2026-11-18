@@ -10,7 +10,10 @@ __pycache__/
 node_modules/
 dist/
 backend/uploads/
+backend/build/
 backups/
+.vercel/
+!.env.vercel.example
 *.egg-info/
 
 # Frontend verification artifacts

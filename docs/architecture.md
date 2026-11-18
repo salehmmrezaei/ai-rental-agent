@@ -2,6 +2,13 @@
 
 ## Public portfolio mode
 
+For serverless execution, `DEMO_STATE_BACKEND=postgres` replaces process-local state
+with visitor rows and bounded JSON history, row-locked updates and shared rate
+buckets. `backend/vercel_entry.py` enforces this mode. Additive migration `0010`
+introduces operational tables only; rental entities remain unchanged. The
+[Vercel/Neon guide](vercel-neon.md) covers pooling, expiry and runtime role grants.
+The memory-mode worker/restart behavior described below remains the Docker default.
+
 `PUBLIC_DEMO_MODE=true` adds a separate, restricted access boundary while preserving
 the normal application below when disabled. Visitors enter through `POST
 /api/v1/demo/access` with a role, never a shared password. Signed `demo` tokens carry

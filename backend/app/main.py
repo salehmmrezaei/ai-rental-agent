@@ -15,8 +15,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="AI Rental Agent", version="0.7.0",
                   docs_url="/docs" if docs else None, redoc_url="/redoc" if docs else None,
                   openapi_url="/openapi.json" if docs else None)
-    app.state.assistant_throttle = AuthThrottle(settings.assistant_rate_limit)
-    app.state.demo_access_throttle = AuthThrottle(settings.demo_access_rate_limit)
+    from app.shared_demo import throttle
+    app.state.assistant_throttle = throttle('chat', settings.assistant_rate_limit)
+    app.state.demo_access_throttle = throttle('access', settings.demo_access_rate_limit)
     install_error_handlers(app)
     install_auth_throttle(app, settings.auth_rate_limit)
     app.add_middleware(UploadRequestLimit, max_bytes=settings.max_image_bytes + 65536)
